@@ -595,7 +595,8 @@ header h1::first-letter {
 }
 
 .action-btn.speak-btn { color: var(--accent); }
-.action-btn.speak-btn.loading .icon {
+.action-btn.speak-btn.loading .icon,
+.action-btn.breakdown-toggle.loading .icon {
   animation: spin 0.9s linear infinite;
 }
 

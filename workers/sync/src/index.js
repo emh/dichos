@@ -22,6 +22,27 @@ export class Phrasebook {
     this.state.storage.sql.exec(
       "CREATE INDEX IF NOT EXISTS phrases_updated_at_idx ON phrases(updated_at)"
     );
+    this.state.storage.sql.exec(`
+      CREATE TABLE IF NOT EXISTS breakdowns (
+        text TEXT PRIMARY KEY,
+        json TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    `);
+    this.state.storage.sql.exec(
+      "CREATE INDEX IF NOT EXISTS breakdowns_updated_at_idx ON breakdowns(updated_at)"
+    );
+    this.state.storage.sql.exec(`
+      CREATE TABLE IF NOT EXISTS questions (
+        id TEXT PRIMARY KEY,
+        text TEXT NOT NULL,
+        json TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    `);
+    this.state.storage.sql.exec(
+      "CREATE INDEX IF NOT EXISTS questions_updated_at_idx ON questions(updated_at)"
+    );
   }
 
   async fetch(request) {
@@ -45,11 +66,20 @@ export class Phrasebook {
         const since = numberOrZero(url.searchParams.get("since"));
         return json(this.snapshot(since), 200, cors);
       }
+      if (url.pathname === "/api/breakdowns" && request.method === "GET") {
+        const since = numberOrZero(url.searchParams.get("since"));
+        return json({
+          breakdowns: this.breakdownsSince(since),
+          highWatermark: this.highWatermark()
+        }, 200, cors);
+      }
       if (url.pathname === "/api/purge" && request.method === "POST") {
         if (!isLocalDev(request, this.env)) {
           return json({ error: "Purge is dev-only" }, 403, cors);
         }
         this.state.storage.sql.exec("DELETE FROM phrases");
+        this.state.storage.sql.exec("DELETE FROM breakdowns");
+        this.state.storage.sql.exec("DELETE FROM questions");
         this.broadcast(null, { type: "purge" });
         return json({ ok: true }, 200, cors);
       }
@@ -57,13 +87,26 @@ export class Phrasebook {
         const body = await readJson(request);
         const since = numberOrZero(body?.since);
         const accepted = this.applyPhrases(Array.isArray(body?.phrases) ? body.phrases : []);
+        const acceptedBreakdowns = this.applyBreakdowns(Array.isArray(body?.breakdowns) ? body.breakdowns : []);
+        const acceptedQuestions = this.applyQuestions(Array.isArray(body?.questions) ? body.questions : []);
+        const hwm = this.highWatermark();
         if (accepted.length) {
-          this.broadcast(null, { type: "phrases", phrases: accepted, highWatermark: this.highWatermark() });
+          this.broadcast(null, { type: "phrases", phrases: accepted, highWatermark: hwm });
+        }
+        if (acceptedBreakdowns.length) {
+          this.broadcast(null, { type: "breakdowns", breakdowns: acceptedBreakdowns, highWatermark: hwm });
+        }
+        if (acceptedQuestions.length) {
+          this.broadcast(null, { type: "questions", questions: acceptedQuestions, highWatermark: hwm });
         }
         return json({
           phrases: this.phrasesSince(since),
+          breakdowns: this.breakdownsSince(since),
+          questions: this.questionsSince(since),
           confirmedIds: accepted.map(p => p.id),
-          highWatermark: this.highWatermark()
+          confirmedTexts: acceptedBreakdowns.map(b => b.text),
+          confirmedQuestionIds: acceptedQuestions.map(q => q.id),
+          highWatermark: hwm
         }, 200, cors);
       }
       return json({ error: "Not found" }, 404, cors);
@@ -91,23 +134,32 @@ export class Phrasebook {
         socket.send(JSON.stringify({
           type: "snapshot",
           phrases: this.phrasesSince(since),
+          breakdowns: this.breakdownsSince(since),
+          questions: this.questionsSince(since),
           highWatermark: this.highWatermark()
         }));
         return;
       }
       if (message.type === "push") {
         const accepted = this.applyPhrases(Array.isArray(message.phrases) ? message.phrases : []);
+        const acceptedBreakdowns = this.applyBreakdowns(Array.isArray(message.breakdowns) ? message.breakdowns : []);
+        const acceptedQuestions = this.applyQuestions(Array.isArray(message.questions) ? message.questions : []);
+        const hwm = this.highWatermark();
         socket.send(JSON.stringify({
           type: "ack",
           confirmedIds: accepted.map(p => p.id),
-          highWatermark: this.highWatermark()
+          confirmedTexts: acceptedBreakdowns.map(b => b.text),
+          confirmedQuestionIds: acceptedQuestions.map(q => q.id),
+          highWatermark: hwm
         }));
         if (accepted.length) {
-          this.broadcast(socket, {
-            type: "phrases",
-            phrases: accepted,
-            highWatermark: this.highWatermark()
-          });
+          this.broadcast(socket, { type: "phrases", phrases: accepted, highWatermark: hwm });
+        }
+        if (acceptedBreakdowns.length) {
+          this.broadcast(socket, { type: "breakdowns", breakdowns: acceptedBreakdowns, highWatermark: hwm });
+        }
+        if (acceptedQuestions.length) {
+          this.broadcast(socket, { type: "questions", questions: acceptedQuestions, highWatermark: hwm });
         }
         return;
       }
@@ -157,16 +209,82 @@ export class Phrasebook {
     return rows.map(row => JSON.parse(row.json));
   }
 
+  applyBreakdowns(input) {
+    const accepted = [];
+    for (const candidate of input) {
+      const b = normalizeBreakdown(candidate);
+      if (!b) continue;
+      const existing = [...this.state.storage.sql.exec(
+        "SELECT updated_at FROM breakdowns WHERE text = ?", b.text
+      )][0];
+      if (existing && existing.updated_at >= b.updatedAt) continue;
+      this.state.storage.sql.exec(
+        "INSERT OR REPLACE INTO breakdowns (text, json, updated_at) VALUES (?, ?, ?)",
+        b.text, JSON.stringify(b), b.updatedAt
+      );
+      accepted.push(b);
+    }
+    return accepted;
+  }
+
+  breakdownsSince(since) {
+    const rows = since
+      ? [...this.state.storage.sql.exec(
+          "SELECT json FROM breakdowns WHERE updated_at > ? ORDER BY updated_at ASC", since
+        )]
+      : [...this.state.storage.sql.exec(
+          "SELECT json FROM breakdowns ORDER BY updated_at ASC"
+        )];
+    return rows.map(row => JSON.parse(row.json));
+  }
+
+  applyQuestions(input) {
+    const accepted = [];
+    for (const candidate of input) {
+      const q = normalizeQuestion(candidate);
+      if (!q) continue;
+      const existing = [...this.state.storage.sql.exec(
+        "SELECT updated_at FROM questions WHERE id = ?", q.id
+      )][0];
+      if (existing && existing.updated_at >= q.updatedAt) continue;
+      this.state.storage.sql.exec(
+        "INSERT OR REPLACE INTO questions (id, text, json, updated_at) VALUES (?, ?, ?, ?)",
+        q.id, q.text, JSON.stringify(q), q.updatedAt
+      );
+      accepted.push(q);
+    }
+    return accepted;
+  }
+
+  questionsSince(since) {
+    const rows = since
+      ? [...this.state.storage.sql.exec(
+          "SELECT json FROM questions WHERE updated_at > ? ORDER BY updated_at ASC", since
+        )]
+      : [...this.state.storage.sql.exec(
+          "SELECT json FROM questions ORDER BY updated_at ASC"
+        )];
+    return rows.map(row => JSON.parse(row.json));
+  }
+
   highWatermark() {
-    const rows = [...this.state.storage.sql.exec(
+    const a = [...this.state.storage.sql.exec(
       "SELECT updated_at FROM phrases ORDER BY updated_at DESC LIMIT 1"
-    )];
-    return rows[0]?.updated_at || 0;
+    )][0]?.updated_at || 0;
+    const b = [...this.state.storage.sql.exec(
+      "SELECT updated_at FROM breakdowns ORDER BY updated_at DESC LIMIT 1"
+    )][0]?.updated_at || 0;
+    const c = [...this.state.storage.sql.exec(
+      "SELECT updated_at FROM questions ORDER BY updated_at DESC LIMIT 1"
+    )][0]?.updated_at || 0;
+    return Math.max(a, b, c);
   }
 
   snapshot(since) {
     return {
       phrases: this.phrasesSince(since),
+      breakdowns: this.breakdownsSince(since),
+      questions: this.questionsSince(since),
       highWatermark: this.highWatermark()
     };
   }
@@ -207,6 +325,43 @@ function normalizePhrase(input) {
   };
   if (!phrase.es) return null;
   return phrase;
+}
+
+function normalizeBreakdown(input) {
+  if (!input || typeof input !== "object") return null;
+  const text = String(input.text || "").trim().slice(0, 1000);
+  if (!text) return null;
+  const wordsRaw = Array.isArray(input.words) ? input.words : null;
+  if (!wordsRaw) return null;
+  const words = wordsRaw.map(w => ({
+    word: String(w?.word || "").slice(0, 200),
+    lemma: String(w?.lemma || "").slice(0, 200),
+    pos: String(w?.pos || "").slice(0, 64),
+    gloss: String(w?.gloss || "").slice(0, 400),
+    info: Array.isArray(w?.info) ? w.info.map(s => String(s).slice(0, 100)).slice(0, 16) : []
+  }));
+  return {
+    text,
+    words,
+    updatedAt: numberOrZero(input.updatedAt) || Date.now()
+  };
+}
+
+function normalizeQuestion(input) {
+  if (!input || typeof input !== "object") return null;
+  const id = String(input.id || "").trim();
+  const text = String(input.text || "").trim().slice(0, 1000);
+  const q = String(input.q || "").trim().slice(0, 2000);
+  const a = String(input.a || "").trim().slice(0, 4000);
+  if (!id || !text || !q) return null;
+  return {
+    id,
+    text,
+    q,
+    a,
+    askedAt: numberOrZero(input.askedAt) || Date.now(),
+    updatedAt: numberOrZero(input.updatedAt) || Date.now()
+  };
 }
 
 function numberOrZero(value) {

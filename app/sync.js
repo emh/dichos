@@ -4,12 +4,16 @@ const SYNC_HOST = globalThis.DICHOS_CONFIG?.syncBaseUrl || 'http://127.0.0.1:804
 const WS_HOST = SYNC_HOST.replace(/^http/, 'ws');
 
 export class Sync {
-  constructor({ onRemote, onStatus }) {
+  constructor({ onRemote, onRemoteBreakdowns, onRemoteQuestions, onStatus }) {
     this.onRemote = onRemote;       // (phrases) => void — apply incoming
+    this.onRemoteBreakdowns = onRemoteBreakdowns || (() => {});
+    this.onRemoteQuestions = onRemoteQuestions || (() => {});
     this.onStatus = onStatus || (() => {});
     this.deviceId = loadDeviceId();
     this.state = loadSyncState();   // { highWatermark }
     this.pending = [];              // phrases queued to send
+    this.pendingBreakdowns = [];    // breakdowns queued to send
+    this.pendingQuestions = [];     // questions queued to send
     this.socket = null;
     this.reconnectDelay = 1000;
     this.connecting = false;
@@ -60,6 +64,8 @@ export class Sync {
       try { msg = JSON.parse(e.data); } catch { return; }
       if (msg.type === 'snapshot' || msg.type === 'phrases') {
         this.applySnapshot(msg);
+      } else if (msg.type === 'breakdowns' || msg.type === 'questions') {
+        this.applySnapshot(msg);
       } else if (msg.type === 'ack') {
         this.handleAck(msg);
       } else if (msg.type === 'purge') {
@@ -90,6 +96,10 @@ export class Sync {
   applySnapshot(data) {
     const phrases = Array.isArray(data?.phrases) ? data.phrases : [];
     if (phrases.length) this.onRemote(phrases);
+    const breakdowns = Array.isArray(data?.breakdowns) ? data.breakdowns : [];
+    if (breakdowns.length) this.onRemoteBreakdowns(breakdowns);
+    const questions = Array.isArray(data?.questions) ? data.questions : [];
+    if (questions.length) this.onRemoteQuestions(questions);
     if (typeof data?.highWatermark === 'number' && data.highWatermark > this.state.highWatermark) {
       this.state.highWatermark = data.highWatermark;
       saveSyncState(this.state);
@@ -99,6 +109,10 @@ export class Sync {
   handleAck(msg) {
     const ids = new Set(msg.confirmedIds || []);
     this.pending = this.pending.filter(p => !ids.has(p.id));
+    const texts = new Set(msg.confirmedTexts || []);
+    this.pendingBreakdowns = this.pendingBreakdowns.filter(b => !texts.has(b.text));
+    const qids = new Set(msg.confirmedQuestionIds || []);
+    this.pendingQuestions = this.pendingQuestions.filter(q => !qids.has(q.id));
     if (typeof msg.highWatermark === 'number' && msg.highWatermark > this.state.highWatermark) {
       this.state.highWatermark = msg.highWatermark;
       saveSyncState(this.state);
@@ -110,28 +124,56 @@ export class Sync {
     this.flush();
   }
 
+  pushBreakdown(breakdown) {
+    this.pendingBreakdowns = this.pendingBreakdowns.filter(b => b.text !== breakdown.text);
+    this.pendingBreakdowns.push(breakdown);
+    this.flush();
+  }
+
+  pushQuestion(question) {
+    this.pendingQuestions = this.pendingQuestions.filter(q => q.id !== question.id);
+    this.pendingQuestions.push(question);
+    this.flush();
+  }
+
   flush() {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
       this.flushHttp();
       return;
     }
-    if (!this.pending.length) return;
-    this.socket.send(JSON.stringify({ type: 'push', phrases: this.pending.slice() }));
+    if (!this.pending.length && !this.pendingBreakdowns.length && !this.pendingQuestions.length) return;
+    this.socket.send(JSON.stringify({
+      type: 'push',
+      phrases: this.pending.slice(),
+      breakdowns: this.pendingBreakdowns.slice(),
+      questions: this.pendingQuestions.slice()
+    }));
   }
 
   async flushHttp() {
-    if (!this.pending.length) return;
-    const sending = this.pending.slice();
+    if (!this.pending.length && !this.pendingBreakdowns.length && !this.pendingQuestions.length) return;
+    const sendingPhrases = this.pending.slice();
+    const sendingBreakdowns = this.pendingBreakdowns.slice();
+    const sendingQuestions = this.pendingQuestions.slice();
     try {
       const res = await fetch(`${SYNC_HOST}/api/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phrases: sending, since: this.state.highWatermark })
+        body: JSON.stringify({
+          phrases: sendingPhrases,
+          breakdowns: sendingBreakdowns,
+          questions: sendingQuestions,
+          since: this.state.highWatermark
+        })
       });
       if (!res.ok) throw new Error(`push ${res.status}`);
       const data = await res.json();
       const ids = new Set(data.confirmedIds || []);
       this.pending = this.pending.filter(p => !ids.has(p.id));
+      const texts = new Set(data.confirmedTexts || []);
+      this.pendingBreakdowns = this.pendingBreakdowns.filter(b => !texts.has(b.text));
+      const qids = new Set(data.confirmedQuestionIds || []);
+      this.pendingQuestions = this.pendingQuestions.filter(q => !qids.has(q.id));
       this.applySnapshot(data);
     } catch {
       // leave pending; will retry on reconnect

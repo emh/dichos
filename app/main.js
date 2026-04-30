@@ -9,7 +9,13 @@ const TTS_URL = `${ASK_BASE}/api/tts`;
 const BREAKDOWN_URL = `${ASK_BASE}/api/breakdown`;
 const QUESTION_URL = `${ASK_BASE}/api/question`;
 
-const breakdownCache = new Map(Object.entries(loadBreakdowns())); // text -> { words: [...] }
+// text -> { words: [...], updatedAt }
+const breakdownCache = new Map(
+  Object.entries(loadBreakdowns()).map(([text, v]) => [
+    text,
+    { words: v?.words || [], updatedAt: Number(v?.updatedAt) || 0 }
+  ])
+);
 const breakdownLoading = new Set();
 const breakdownOpen = new Set();
 
@@ -17,8 +23,40 @@ function persistBreakdowns() {
   saveBreakdowns(Object.fromEntries(breakdownCache));
 }
 
-// per Spanish text → array of { q, a, askedAt }
-const questionsByText = new Map(Object.entries(loadQuestions()));
+function mergeRemoteBreakdowns(incoming) {
+  let changed = false;
+  let visibleChanged = false;
+  for (const remote of incoming) {
+    if (!remote?.text || !Array.isArray(remote.words)) continue;
+    const local = breakdownCache.get(remote.text);
+    const localTs = local?.updatedAt || 0;
+    const remoteTs = Number(remote.updatedAt) || 0;
+    if (remoteTs > localTs) {
+      breakdownCache.set(remote.text, { words: remote.words, updatedAt: remoteTs });
+      changed = true;
+      if (breakdownOpen.has(remote.text)) visibleChanged = true;
+    }
+  }
+  if (changed) persistBreakdowns();
+  if (visibleChanged) {
+    renderSaved();
+    renderPending();
+  }
+}
+
+// per Spanish text → array of { id, q, a, askedAt, updatedAt }
+const questionsByText = new Map(
+  Object.entries(loadQuestions()).map(([text, list]) => [
+    text,
+    (Array.isArray(list) ? list : []).map(item => ({
+      id: item.id || newId(),
+      q: item.q,
+      a: item.a,
+      askedAt: Number(item.askedAt) || 0,
+      updatedAt: Number(item.updatedAt) || Number(item.askedAt) || 0
+    }))
+  ])
+);
 const questionsOpen = new Set();
 const questionsLoading = new Set();
 
@@ -28,6 +66,47 @@ function persistQuestions() {
 
 function getQuestions(text) {
   return questionsByText.get(text) || [];
+}
+
+function mergeRemoteQuestions(incoming) {
+  let changed = false;
+  let visibleChanged = false;
+  for (const remote of incoming) {
+    if (!remote?.id || !remote?.text) continue;
+    const list = questionsByText.get(remote.text) || [];
+    const i = list.findIndex(item => item.id === remote.id);
+    const remoteTs = Number(remote.updatedAt) || 0;
+    if (i === -1) {
+      list.push({
+        id: remote.id,
+        q: remote.q,
+        a: remote.a,
+        askedAt: Number(remote.askedAt) || remoteTs,
+        updatedAt: remoteTs
+      });
+      changed = true;
+    } else {
+      const localTs = Number(list[i].updatedAt) || 0;
+      if (remoteTs > localTs) {
+        list[i] = {
+          id: remote.id,
+          q: remote.q,
+          a: remote.a,
+          askedAt: Number(remote.askedAt) || remoteTs,
+          updatedAt: remoteTs
+        };
+        changed = true;
+      } else continue;
+    }
+    list.sort((a, b) => (a.askedAt || 0) - (b.askedAt || 0));
+    questionsByText.set(remote.text, list);
+    if (questionsOpen.has(remote.text)) visibleChanged = true;
+  }
+  if (changed) persistQuestions();
+  if (visibleChanged) {
+    renderSaved();
+    renderPending();
+  }
 }
 
 const PLACEHOLDERS = {
@@ -120,6 +199,8 @@ function mergeRemote(incoming) {
 
 const sync = new Sync({
   onRemote: mergeRemote,
+  onRemoteBreakdowns: mergeRemoteBreakdowns,
+  onRemoteQuestions: mergeRemoteQuestions,
   onStatus: (s) => {
     const el = document.getElementById('sync-status');
     if (el) el.textContent = s;
@@ -200,6 +281,7 @@ function bindSpeakButtons(root) {
 
 function actionsHTML(text, ctx) {
   const breakOpen = breakdownOpen.has(text);
+  const breakLoading = breakdownLoading.has(text);
   const qOpen = questionsOpen.has(text);
   const t = escapeHtml(text);
   const lit = escapeHtml(ctx?.literal || '');
@@ -207,7 +289,7 @@ function actionsHTML(text, ctx) {
   return `
     <div class="actions">
       <button class="action-btn speak-btn" title="hear it" data-text="${t}">${ICON_VOLUME}</button>
-      <button class="action-btn breakdown-toggle ${breakOpen ? 'active' : ''}" title="break it down" data-text="${t}">${ICON_NETWORK}</button>
+      <button class="action-btn breakdown-toggle ${breakOpen ? 'active' : ''} ${breakLoading ? 'loading' : ''}" title="break it down" data-text="${t}">${ICON_NETWORK}</button>
       <button class="action-btn questions-toggle ${qOpen ? 'active' : ''}" title="ask a question" data-text="${t}" data-literal="${lit}" data-intent="${intent}">${ICON_QUESTION}</button>
     </div>
   `;
@@ -219,11 +301,7 @@ function speakOnlyHTML(text) {
 
 function breakdownHTML(text) {
   if (!breakdownOpen.has(text)) return '';
-  const loading = breakdownLoading.has(text);
   const data = breakdownCache.get(text);
-  if (loading) {
-    return `<div class="breakdown-body"><span class="pulse"></span>thinking…</div>`;
-  }
   if (!data) return '';
   return `
     <div class="breakdown-body">
@@ -255,8 +333,11 @@ async function loadBreakdown(text, rerender) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `request failed: ${res.status}`);
-    breakdownCache.set(text, data);
+    const now = Date.now();
+    const entry = { words: data.words || [], updatedAt: now };
+    breakdownCache.set(text, entry);
     persistBreakdowns();
+    sync.pushBreakdown({ text, words: entry.words, updatedAt: now });
   } catch (err) {
     breakdownOpen.delete(text);
     status.textContent = `breakdown error · ${err.message}`;
@@ -311,9 +392,12 @@ async function askQuestion(text, ctx, q, rerender) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `request failed: ${res.status}`);
     const log = history.slice();
-    log.push({ q, a: data.answer, askedAt: Date.now() });
+    const now = Date.now();
+    const entry = { id: newId(), q, a: data.answer, askedAt: now, updatedAt: now };
+    log.push(entry);
     questionsByText.set(text, log);
     persistQuestions();
+    sync.pushQuestion({ id: entry.id, text, q: entry.q, a: entry.a, askedAt: entry.askedAt, updatedAt: entry.updatedAt });
   } catch (err) {
     status.textContent = `question error · ${err.message}`;
   } finally {
