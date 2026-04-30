@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#FFFBF2">
+<title>dichos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #FFFBF2;
+  --paper-shade: #f7f0dd;
+  --ink: #1a140c;
+  --ink-mid: #5a4a36;
+  --ink-light: #9a8a72;
+  --ink-faint: #d4c8b0;
+  --accent: #b8421a;            /* terracotta */
+  --accent-light: #d65a2c;
+  --accent-faint: rgba(184, 66, 26, 0.10);
+  --gold: #a07418;
+  --rule: #e6dcc4;
+  --rule-soft: #efe7d3;
+  --hover: rgba(0,0,0,0.02);
+  --font: 'Crimson Pro', 'Palatino Linotype', Palatino, Georgia, serif;
+  --mono: 'SF Mono', 'Menlo', 'Consolas', 'Liberation Mono', monospace;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+*, *::before, *::after {
+  margin: 0; padding: 0; box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--paper);
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(184, 66, 26, 0.018) 0, transparent 42%),
+    radial-gradient(circle at 85% 75%, rgba(160, 116, 24, 0.020) 0, transparent 45%);
+}
+
+body.no-scroll { overflow: hidden; }
+
+::selection { background: var(--accent-faint); color: var(--ink); }
+
+/* ─── App shell ─── */
+
+#app {
+  max-width: 660px;
+  margin: 0 auto;
+  padding: 0 24px 120px;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* ─── Header ─── */
+
+header {
+  padding-top: 56px;
+  margin-bottom: 24px;
+  position: relative;
+}
+
+header h1 {
+  font-family: var(--font);
+  font-size: 48px;
+  font-weight: 300;
+  font-style: italic;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  margin-bottom: 14px;
+}
+
+header h1::first-letter {
+  color: var(--accent);
+}
+
+.tagline {
+  font-family: var(--font);
+  font-size: 13.5px;
+  font-style: italic;
+  color: var(--ink-mid);
+  margin-bottom: 16px;
+  max-width: 460px;
+}
+
+#stats {
+  display: flex;
+  gap: 14px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-light);
+  letter-spacing: 0.02em;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+  flex-wrap: wrap;
+}
+
+#stats .divider { color: var(--ink-faint); }
+#stats .count { color: var(--ink-mid); }
+
+/* ─── Ask box ─── */
+
+.ask {
+  margin: 28px 0 8px;
+  padding: 18px 18px 14px;
+  border: 1px solid var(--rule);
+  background: var(--paper-shade);
+  position: relative;
+}
+
+.ask::before {
+  content: "";
+  position: absolute;
+  left: -1px; top: -1px; bottom: -1px;
+  width: 2px;
+  background: var(--accent);
+  opacity: 0.55;
+}
+
+.ask-label {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+.ask textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font);
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--ink);
+  font-style: italic;
+  resize: none;
+  min-height: 28px;
+}
+
+.ask textarea::placeholder {
+  color: var(--ink-faint);
+  font-style: italic;
+}
+
+.ask-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+}
+
+.ask-hint {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-light);
+}
+
+.ask-hint kbd {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  padding: 1px 5px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--ink-mid);
+  background: var(--paper);
+}
+
+.ask-go {
+  font-family: var(--font);
+  font-size: 14px;
+  font-style: italic;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color 0.15s;
+}
+
+.ask-go:hover { color: var(--accent-light); }
+
+.ask-status {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-light);
+  height: 18px;
+  line-height: 18px;
+  margin: 6px 2px 0;
+}
+
+.ask-status .pulse {
+  display: inline-block;
+  width: 5px; height: 5px;
+  background: var(--accent);
+  border-radius: 50%;
+  margin-right: 7px;
+  vertical-align: 1px;
+  animation: pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 1; }
+}
+
+/* ─── Suggestion (live answer) ─── */
+
+.suggestion {
+  margin: 22px 0 36px;
+  padding: 22px 0 24px;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  position: relative;
+  display: none;
+}
+
+.suggestion.visible { display: block; }
+
+.suggestion-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-light);
+  margin-bottom: 14px;
+}
+
+.suggestion-meta .tag-region {
+  color: var(--gold);
+}
+
+.suggestion-meta .tag-register {
+  color: var(--ink-mid);
+}
+
+.suggestion-meta .dot { color: var(--ink-faint); font-size: 8px; }
+
+.suggestion-phrase {
+  font-size: 28px;
+  line-height: 1.32;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+  padding-left: 22px;
+  position: relative;
+  margin-bottom: 14px;
+}
+
+.suggestion-phrase::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 6px; bottom: 6px;
+  width: 2px;
+  background: var(--accent);
+}
+
+.suggestion-literal {
+  padding-left: 22px;
+  font-size: 14px;
+  color: var(--ink-mid);
+  margin-bottom: 14px;
+}
+
+.suggestion-literal .lab {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-light);
+  margin-right: 8px;
+}
+
+.suggestion-note {
+  padding-left: 22px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ink-mid);
+  border-left: 0;
+  margin-bottom: 18px;
+}
+
+.suggestion-note em { color: var(--ink); font-style: italic; }
+
+.alternatives {
+  padding-left: 22px;
+  margin-top: 18px;
+}
+
+.alternatives-label {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink-light);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.alternatives-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--rule);
+}
+
+.alt {
+  padding: 10px 0;
+  border-bottom: 1px dotted var(--rule);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 14px;
+  align-items: baseline;
+}
+.alt:last-child { border-bottom: none; }
+
+.alt-phrase {
+  font-size: 17px;
+  font-style: italic;
+  color: var(--ink);
+}
+
+.alt-region {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+
+.alt-note {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  color: var(--ink-light);
+  margin-top: 2px;
+}
+
+.suggestion-actions {
+  margin-top: 22px;
+  padding-top: 16px;
+  padding-left: 22px;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
+.action-link {
+  font-family: var(--font);
+  font-size: 15px;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 0;
+  transition: color 0.15s;
+}
+
+.action-link:hover { color: var(--accent-light); }
+.action-link.muted { color: var(--ink-light); }
+.action-link.muted:hover { color: var(--ink); }
+
+/* ─── Filter tabs ─── */
+
+#filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin-bottom: 10px;
+  user-select: none;
+}
+
+.cat-item {
+  font-size: 14px;
+  font-weight: 400;
+  padding: 6px 0;
+  margin-right: 18px;
+  color: var(--ink-light);
+  cursor: pointer;
+  transition: color 0.15s;
+  white-space: nowrap;
+  font-style: italic;
+}
+
+.cat-item:hover { color: var(--ink-mid); }
+.cat-item.active { color: var(--ink); font-style: normal; }
+
+.cat-item .badge {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-style: normal;
+  color: var(--ink-faint);
+  margin-left: 4px;
+  vertical-align: 1px;
+}
+.cat-item.active .badge { color: var(--accent); }
+
+/* ─── Sort row ─── */
+
+#sort-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 18px;
+}
+
+.sort-control {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-light);
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 0;
+  background: none;
+  border: none;
+}
+.sort-control:hover { color: var(--ink-mid); }
+
+.section-heading {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-light);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.section-heading::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--rule);
+}
+
+/* ─── Saved cards ─── */
+
+.card {
+  padding: 20px 0 22px;
+  border-top: 1px solid var(--rule);
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.2s var(--ease);
+}
+.card:last-child { border-bottom: 1px solid var(--rule); }
+.card:hover { transform: translateX(2px); }
+.card:active { opacity: 0.6; }
+
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-light);
+  letter-spacing: 0.02em;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.card-cat {
+  color: var(--accent);
+  text-transform: lowercase;
+}
+
+.card-region {
+  color: var(--gold);
+  text-transform: lowercase;
+}
+
+.card-meta .dot { color: var(--ink-faint); font-size: 8px; }
+.card-meta .meta-date { margin-left: auto; }
+
+.card-intent {
+  font-family: var(--font);
+  font-size: 13px;
+  font-style: italic;
+  color: var(--ink-light);
+  margin-bottom: 6px;
+}
+.card-intent::before { content: "› "; color: var(--ink-faint); }
+
+.card-phrase {
+  font-size: 22px;
+  line-height: 1.32;
+  font-style: italic;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  padding-left: 16px;
+  position: relative;
+  margin-bottom: 6px;
+}
+.card-phrase::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 4px; bottom: 4px;
+  width: 2px;
+  background: var(--accent);
+}
+
+.card-literal {
+  font-size: 13px;
+  color: var(--ink-mid);
+  padding-left: 16px;
+}
+
+.card-uses {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-light);
+  padding-left: 16px;
+}
+.card-uses .accent { color: var(--accent); }
+
+/* ─── Detail overlay ─── */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--paper);
+  transform: translateX(100%);
+  transition: transform 0.4s var(--ease), visibility 0s linear 0.4s;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  z-index: 100;
+  visibility: hidden;
+  background-image:
+    radial-gradient(circle at 70% 15%, rgba(184, 66, 26, 0.018) 0, transparent 38%);
+}
+
+.overlay.active {
+  transform: translateX(0);
+  visibility: visible;
+  transition: transform 0.4s var(--ease), visibility 0s linear 0s;
+}
+
+.overlay-content {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 24px;
+  padding-top: calc(24px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
+
+.detail-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.back-btn {
+  font-family: var(--font);
+  font-size: 15px;
+  color: var(--ink-light);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 12px 16px 12px 0;
+  user-select: none;
+  transition: color 0.15s;
+}
+.back-btn::before { content: "←  "; opacity: 0.6; }
+.back-btn:hover { color: var(--ink); }
+
+.detail-meta-top {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-light);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.detail-card {
+  margin-bottom: 38px;
+}
+
+.detail-card-type {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.detail-card-type::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--rule);
+}
+
+.detail-intent {
+  font-family: var(--font);
+  font-size: 15px;
+  font-style: italic;
+  color: var(--ink-mid);
+  margin-bottom: 16px;
+  padding-left: 28px;
+  position: relative;
+}
+.detail-intent::before {
+  content: "›";
+  position: absolute;
+  left: 6px;
+  color: var(--ink-faint);
+}
+
+.detail-phrase {
+  font-size: 32px;
+  line-height: 1.28;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  padding: 0 0 0 28px;
+  position: relative;
+  margin-bottom: 18px;
+}
+.detail-phrase::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 4px; bottom: 6px;
+  width: 3px;
+  background: var(--accent);
+}
+
+.detail-literal {
+  padding-left: 28px;
+  font-size: 14.5px;
+  color: var(--ink-mid);
+  margin-bottom: 12px;
+}
+.detail-literal .lab {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-light);
+  margin-right: 8px;
+}
+
+.detail-source-line {
+  padding-left: 28px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-light);
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.detail-source-line .sep { color: var(--ink-faint); }
+.detail-source-line .region { color: var(--gold); }
+
+.detail-actions {
+  margin-top: 24px;
+  padding-top: 16px;
+  padding-left: 28px;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
+/* ─── Sections inside detail ─── */
+
+.section-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--ink-light);
+  margin: 38px 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.section-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--rule);
+}
+.section-label .count {
+  color: var(--ink-faint);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+}
+
+/* When-to-use / when-not blocks */
+.use-block {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+  margin-bottom: 28px;
+}
+.use-block .col {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink-mid);
+}
+.use-block h4 {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink-light);
+  margin-bottom: 8px;
+  font-weight: 400;
+}
+.use-block .col.yes h4 { color: var(--accent); }
+.use-block .col.no h4 { color: var(--gold); }
+.use-block ul { list-style: none; }
+.use-block li {
+  padding: 6px 0 6px 16px;
+  position: relative;
+  border-bottom: 1px dotted var(--rule);
+}
+.use-block li:last-child { border-bottom: none; }
+.use-block .yes li::before {
+  content: "✓";
+  position: absolute;
+  left: 0; top: 6px;
+  color: var(--accent);
+  font-size: 12px;
+}
+.use-block .no li::before {
+  content: "—";
+  position: absolute;
+  left: 0; top: 6px;
+  color: var(--gold);
+  font-size: 12px;
+}
+
+/* Example dialog */
+.dialog {
+  border-left: 2px solid var(--rule);
+  padding-left: 18px;
+  margin-bottom: 28px;
+}
+.dialog .line {
+  margin-bottom: 14px;
+}
+.dialog .speaker {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-light);
+  margin-bottom: 4px;
+}
+.dialog .es {
+  font-size: 16.5px;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.dialog .en {
+  font-size: 13.5px;
+  color: var(--ink-mid);
+  margin-top: 2px;
+}
+.dialog .line.you .speaker { color: var(--accent); }
+.dialog .line.you .es { color: var(--accent); }
+
+/* Variants list */
+.variants .v-row {
+  padding: 12px 0;
+  border-bottom: 1px dotted var(--rule);
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 14px;
+  align-items: baseline;
+}
+.variants .v-row:last-child { border-bottom: none; }
+.variants .v-region {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--gold);
+  padding-top: 3px;
+}
+.variants .v-phrase {
+  font-size: 17px;
+  font-style: italic;
+  color: var(--ink);
+  line-height: 1.35;
+}
+.variants .v-note {
+  display: block;
+  margin-top: 2px;
+  font-style: normal;
+  font-size: 12.5px;
+  color: var(--ink-light);
+}
+
+/* Kinship */
+.kinship-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+.kin {
+  padding: 14px 0;
+  border-top: 1px solid var(--rule-soft);
+  display: grid;
+  grid-template-columns: 38px 1fr auto;
+  gap: 14px;
+  align-items: baseline;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.kin:last-child { border-bottom: 1px solid var(--rule-soft); }
+.kin:hover { opacity: 0.7; }
+
+.kin-strength {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--accent);
+  padding-top: 2px;
+}
+.kin-main .kin-title {
+  font-size: 16px;
+  font-style: italic;
+  color: var(--ink);
+}
+.kin-main .kin-bridge {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-light);
+}
+.kin-cat {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+  text-transform: lowercase;
+}
+
+/* ─── Toast ─── */
+
+.toast {
+  position: fixed;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--paper);
+  color: var(--ink);
+  padding: 8px 18px;
+  border: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  opacity: 0;
+  transition: opacity 0.3s, transform 0.3s var(--ease);
+  pointer-events: none;
+  z-index: 9999;
+  white-space: nowrap;
+  box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+}
+.toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.toast .accent { color: var(--accent); }
+
+/* ─── Index bar ─── */
+
+#index-bar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  border-top: 1px solid var(--rule);
+  padding: 10px 24px calc(10px + env(safe-area-inset-bottom, 0px));
+  z-index: 50;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-light);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+  background: rgba(255, 251, 242, 0.92);
+}
+#index-bar .ix-name { color: var(--ink-mid); }
+#index-bar .ix-region { color: var(--gold); }
+#index-bar .ix-new { color: var(--accent); cursor: pointer; letter-spacing: 0.1em; }
+#index-bar .ix-new:hover { color: var(--accent-light); }
+
+/* ─── Responsive ─── */
+
+@media (max-width: 720px) {
+  #app { padding: 0 22px 110px; }
+  .overlay-content {
+    padding: 22px 22px calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 520px) {
+  body { font-size: 16px; }
+
+  header { padding-top: 40px; margin-bottom: 22px; }
+  header h1 { font-size: 38px; letter-spacing: -0.03em; }
+  .tagline { font-size: 13px; margin-bottom: 12px; }
+
+  .ask { padding: 14px 14px 12px; margin-top: 22px; }
+  .ask textarea { font-size: 17px; }
+  .ask-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+  .ask-hint { font-size: 9.5px; }
+  .ask-hint kbd { font-size: 9px; padding: 0 4px; }
+  .ask-go { align-self: flex-end; }
+
+  .suggestion { padding: 18px 0 18px; margin: 18px 0 30px; }
+  .suggestion-phrase {
+    font-size: 22px;
+    padding-left: 16px;
+  }
+  .suggestion-literal,
+  .suggestion-note,
+  .alternatives,
+  .suggestion-actions { padding-left: 16px; }
+
+  .cat-item { font-size: 13.5px; margin-right: 14px; padding: 6px 0; }
+
+  .card { padding: 16px 0 18px; }
+  .card-phrase { font-size: 19px; }
+
+  .detail-nav { margin-bottom: 22px; }
+  .detail-phrase {
+    font-size: 24px;
+    padding-left: 18px;
+    line-height: 1.32;
+  }
+  .detail-intent,
+  .detail-literal,
+  .detail-source-line,
+  .detail-actions { padding-left: 18px; }
+
+  .use-block { grid-template-columns: 1fr; gap: 18px; }
+  .variants .v-row { grid-template-columns: 70px 1fr; }
+  .kin { grid-template-columns: 30px 1fr; }
+  .kin-cat { grid-column: 2; justify-self: start; margin-top: 2px; }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .ask textarea { font-size: 16px; }
+}
+@media (hover: none) {
+  .card:hover { transform: none; }
+  .kin:hover { opacity: 1; }
+}
+</style>
+</head>
+<body>
+
+<main id="app">
+  <header>
+    <h1>dichos</h1>
+    <p class="tagline">a phrasebook of the Spanish you actually want to say — intent first, then idiom, then the way it sounds out loud.</p>
+    <div id="stats">
+      <span><span class="count">38</span> phrases</span>
+      <span class="divider">·</span>
+      <span><span class="count">7</span> categories</span>
+      <span class="divider">·</span>
+      <span>region <span class="count">MX · ES</span></span>
+      <span class="divider">·</span>
+      <span>last asked <span class="count">9m</span> ago</span>
+    </div>
+  </header>
+
+  <!-- ─── Ask box ─── -->
+  <div class="ask">
+    <div class="ask-label">In English, what do you want to say?</div>
+    <textarea id="ask-input" rows="2" placeholder="e.g. I want to order my eggs sunny side up"></textarea>
+    <div class="ask-bar">
+      <span class="ask-hint"><kbd>⌘</kbd> <kbd>↵</kbd> to ask · region <em>MX</em> · <em>neutral</em> register</span>
+      <button class="ask-go" id="ask-go">Ask →</button>
+    </div>
+  </div>
+  <div class="ask-status" id="ask-status"></div>
+
+  <!-- ─── Live suggestion ─── -->
+  <section class="suggestion visible" id="suggestion">
+    <div class="suggestion-meta">
+      <span class="tag-region">Mexico</span>
+      <span class="dot">●</span>
+      <span class="tag-register">neutral · café/diner</span>
+      <span class="dot">●</span>
+      <span>breakfast</span>
+    </div>
+
+    <div class="suggestion-phrase">
+      ¿Me trae los huevos estrellados, por favor?
+    </div>
+
+    <div class="suggestion-literal">
+      <span class="lab">literal</span> Could you bring me the “starred” eggs, please?
+    </div>
+
+    <div class="suggestion-note">
+      <em>Estrellados</em> is the everyday word in Mexico for sunny-side-up eggs — yolk intact, whites set, never flipped. Asking <em>“¿me trae…?”</em> (rather than <em>“quiero…”</em>) is how locals stay polite without the stiffness of <em>“quisiera.”</em> If you want them runny, add <em>“tiernos”</em>; firm, <em>“bien cocidos.”</em>
+    </div>
+
+    <div class="alternatives">
+      <div class="alternatives-label">also heard</div>
+
+      <div class="alt">
+        <span class="alt-phrase">Huevos estrellados, por favor.</span>
+        <span class="alt-region">MX · casual</span>
+        <span class="alt-note">Shorter, fine at a fonda or taquería counter.</span>
+      </div>
+
+      <div class="alt">
+        <span class="alt-phrase">¿Me pone un par de huevos a la plancha, vuelta y vuelta no?</span>
+        <span class="alt-region">ES · Spain</span>
+        <span class="alt-note">In Spain <em>estrellados</em> means broken eggs over fries. Ask for <em>“a la plancha”</em> and clarify that you don't want them flipped.</span>
+      </div>
+
+      <div class="alt">
+        <span class="alt-phrase">Quiero los huevos sin voltear.</span>
+        <span class="alt-region">neutral</span>
+        <span class="alt-note">Safe fallback anywhere — “without flipping.” Less idiomatic but unambiguous.</span>
+      </div>
+    </div>
+
+    <div class="suggestion-actions">
+      <button class="action-link" id="save-btn">Save to phrasebook</button>
+      <button class="action-link muted">Hear it</button>
+      <button class="action-link muted">Try another region</button>
+      <button class="action-link muted">More formal</button>
+    </div>
+  </section>
+
+  <!-- ─── Filters ─── -->
+  <div id="filters">
+    <div class="cat-item active">All<span class="badge">38</span></div>
+    <div class="cat-item">Food<span class="badge">11</span></div>
+    <div class="cat-item">Getting around<span class="badge">7</span></div>
+    <div class="cat-item">Social<span class="badge">9</span></div>
+    <div class="cat-item">Work<span class="badge">5</span></div>
+    <div class="cat-item">Slang<span class="badge">4</span></div>
+    <div class="cat-item">Emergencies<span class="badge">2</span></div>
+  </div>
+
+  <div id="sort-row">
+    <button class="sort-control">by recent ↓</button>
+    <button class="sort-control">region: MX · ES</button>
+  </div>
+
+  <div class="section-heading">Saved phrases</div>
+
+  <section id="cards">
+
+    <!-- CARD 1 -->
+    <article class="card" data-id="eggs">
+      <div class="card-meta">
+        <span class="card-cat">food</span>
+        <span class="dot">●</span>
+        <span class="card-region">mx</span>
+        <span class="meta-date">today</span>
+      </div>
+      <div class="card-intent">order eggs sunny side up</div>
+      <div class="card-phrase">¿Me trae los huevos estrellados, por favor?</div>
+      <div class="card-literal">lit. could you bring me the “starred” eggs?</div>
+      <div class="card-uses">used <span class="accent">3×</span> · breakfast in CDMX</div>
+    </article>
+
+    <!-- CARD 2 -->
+    <article class="card">
+      <div class="card-meta">
+        <span class="card-cat">social</span>
+        <span class="dot">●</span>
+        <span class="card-region">mx</span>
+        <span class="meta-date">yesterday</span>
+      </div>
+      <div class="card-intent">politely decline a third drink</div>
+      <div class="card-phrase">Ya con esta la cierro, gracias.</div>
+      <div class="card-literal">lit. I'll close it with this one — thanks.</div>
+      <div class="card-uses">used <span class="accent">1×</span></div>
+    </article>
+
+    <!-- CARD 3 -->
+    <article class="card">
+      <div class="card-meta">
+        <span class="card-cat">getting around</span>
+        <span class="dot">●</span>
+        <span class="card-region">es</span>
+        <span class="meta-date">Apr 26</span>
+      </div>
+      <div class="card-intent">tell the cab driver to keep the change</div>
+      <div class="card-phrase">Quédese con la vuelta.</div>
+      <div class="card-literal">lit. keep the “return.”</div>
+      <div class="card-uses">used <span class="accent">2×</span> · Madrid</div>
+    </article>
+
+    <!-- CARD 4 -->
+    <article class="card">
+      <div class="card-meta">
+        <span class="card-cat">slang</span>
+        <span class="dot">●</span>
+        <span class="card-region">mx</span>
+        <span class="meta-date">Apr 24</span>
+      </div>
+      <div class="card-intent">say something is no big deal</div>
+      <div class="card-phrase">No hay bronca.</div>
+      <div class="card-literal">lit. there's no fight.</div>
+      <div class="card-uses">used <span class="accent">5×</span> · works almost everywhere casual</div>
+    </article>
+
+    <!-- CARD 5 -->
+    <article class="card">
+      <div class="card-meta">
+        <span class="card-cat">work</span>
+        <span class="dot">●</span>
+        <span class="card-region">neutral</span>
+        <span class="meta-date">Apr 22</span>
+      </div>
+      <div class="card-intent">soften pushing back on a deadline</div>
+      <div class="card-phrase">Si te parece, lo movemos un par de días.</div>
+      <div class="card-literal">lit. if it seems good to you, we'll move it a couple of days.</div>
+      <div class="card-uses">used <span class="accent">2×</span> · Slack</div>
+    </article>
+
+    <!-- CARD 6 -->
+    <article class="card">
+      <div class="card-meta">
+        <span class="card-cat">food</span>
+        <span class="dot">●</span>
+        <span class="card-region">mx</span>
+        <span class="meta-date">Apr 20</span>
+      </div>
+      <div class="card-intent">ask for the bill without rushing</div>
+      <div class="card-phrase">¿Nos trae la cuenta cuando guste?</div>
+      <div class="card-literal">lit. could you bring us the bill when you like?</div>
+      <div class="card-uses">used <span class="accent">4×</span></div>
+    </article>
+
+    <!-- CARD 7 -->
+    <article class="card">
+      <div class="card-meta">
+        <span class="card-cat">social</span>
+        <span class="dot">●</span>
+        <span class="card-region">es</span>
+        <span class="meta-date">Apr 17</span>
+      </div>
+      <div class="card-intent">say someone is being unreliable</div>
+      <div class="card-phrase">Le da mucho la vuelta.</div>
+      <div class="card-literal">lit. he gives it a lot of turning around.</div>
+      <div class="card-uses">used <span class="accent">1×</span></div>
+    </article>
+
+  </section>
+</main>
+
+<!-- ─── Detail overlay ─── -->
+<div class="overlay" id="detail-overlay">
+  <div class="overlay-content">
+
+    <div class="detail-nav">
+      <button class="back-btn" id="back-btn">Back</button>
+      <div class="detail-meta-top">Phrase 014 of 038</div>
+    </div>
+
+    <section class="detail-card">
+      <div class="detail-card-type">Food · saved today · region MX</div>
+
+      <div class="detail-intent">
+        I want to order my eggs sunny side up
+      </div>
+
+      <div class="detail-phrase">
+        ¿Me trae los huevos estrellados, por favor?
+      </div>
+
+      <div class="detail-literal">
+        <span class="lab">literal</span> Could you bring me the “starred” eggs, please?
+      </div>
+
+      <div class="detail-source-line">
+        <span class="region">Mexico</span>
+        <span class="sep">·</span>
+        <span>neutral register</span>
+        <span class="sep">·</span>
+        <span>café / fonda / diner</span>
+        <span class="sep">·</span>
+        <span>breakfast vocabulary</span>
+      </div>
+
+      <div class="detail-actions">
+        <button class="action-link">Hear it</button>
+        <button class="action-link muted">Practice</button>
+        <button class="action-link muted">Edit</button>
+        <button class="action-link muted">Share</button>
+        <button class="action-link muted">Archive</button>
+      </div>
+    </section>
+
+    <!-- When to / when not to -->
+    <div class="section-label">When it works <span class="count">· and when it doesn't</span></div>
+
+    <div class="use-block">
+      <div class="col yes">
+        <h4>Use it when</h4>
+        <ul>
+          <li>Sitting down at a café, fonda, or diner in Mexico for breakfast.</li>
+          <li>You want polite-but-natural — neither curt nor stiff.</li>
+          <li>You're talking to a server you don't know (use <em>usted</em>).</li>
+        </ul>
+      </div>
+      <div class="col no">
+        <h4>Avoid when</h4>
+        <ul>
+          <li>You're in Spain — there <em>huevos estrellados</em> means broken eggs over fries (delicious, different dish).</li>
+          <li>You want the yolk runny without saying so — clarify <em>“tiernos.”</em></li>
+          <li>Talking to a friend cooking for you — drop the <em>“¿me trae…?”</em>, just say what you want.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Example dialog -->
+    <div class="section-label">In the wild <span class="count">· sample dialog</span></div>
+
+    <div class="dialog">
+      <div class="line">
+        <div class="speaker">server</div>
+        <div class="es">¿Qué le ofrezco para desayunar?</div>
+        <div class="en">What can I get you for breakfast?</div>
+      </div>
+      <div class="line you">
+        <div class="speaker">you</div>
+        <div class="es">¿Me trae los huevos estrellados, por favor? Con frijoles y café americano.</div>
+        <div class="en">Could you bring me the eggs sunny side up, please? With beans and a black coffee.</div>
+      </div>
+      <div class="line">
+        <div class="speaker">server</div>
+        <div class="es">¿Los huevos cómo los quiere, tiernos o bien cocidos?</div>
+        <div class="en">How do you want the eggs — runny or well-cooked?</div>
+      </div>
+      <div class="line you">
+        <div class="speaker">you</div>
+        <div class="es">Tiernos, por favor.</div>
+        <div class="en">Runny, please.</div>
+      </div>
+    </div>
+
+    <!-- Variants -->
+    <div class="section-label">Around the Spanish-speaking world</div>
+
+    <div class="variants">
+      <div class="v-row">
+        <div class="v-region">MX</div>
+        <div class="v-phrase">
+          Huevos estrellados
+          <span class="v-note">the standard. Sunny side up, yolk intact.</span>
+        </div>
+      </div>
+      <div class="v-row">
+        <div class="v-region">ES</div>
+        <div class="v-phrase">
+          Huevos a la plancha (sin voltear)
+          <span class="v-note">In Spain, <em>estrellados</em> is a different dish (eggs broken over fries). Specify <em>“sin voltear.”</em></span>
+        </div>
+      </div>
+      <div class="v-row">
+        <div class="v-region">AR · UY</div>
+        <div class="v-phrase">
+          Huevos fritos, jema blanda
+          <span class="v-note">In the Río de la Plata, plain <em>huevos fritos</em> with <em>“jema blanda”</em> (soft yolk) is clearest.</span>
+        </div>
+      </div>
+      <div class="v-row">
+        <div class="v-region">CL</div>
+        <div class="v-phrase">
+          Huevos a la copa (de un lado)
+          <span class="v-note">Or simply ask for them <em>“de un lado, sin dar vuelta.”</em></span>
+        </div>
+      </div>
+      <div class="v-row">
+        <div class="v-region">CO</div>
+        <div class="v-phrase">
+          Huevos fritos con la yema blanda
+          <span class="v-note">Most servers will read this as sunny side up; <em>“estrellados”</em> works too.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Kinship -->
+    <div class="section-label">Related phrases <span class="count">· you might want next</span></div>
+
+    <div class="kinship-list">
+      <div class="kin">
+        <div class="kin-strength">0.92</div>
+        <div class="kin-main">
+          <div class="kin-title">¿Nos trae la cuenta cuando guste?</div>
+          <span class="kin-bridge">bridge: same polite <em>¿me/nos trae…?</em> frame · food</span>
+        </div>
+        <div class="kin-cat">food</div>
+      </div>
+      <div class="kin">
+        <div class="kin-strength">0.81</div>
+        <div class="kin-main">
+          <div class="kin-title">Para mí, lo mismo pero sin cebolla.</div>
+          <span class="kin-bridge">bridge: customizing an order politely · food</span>
+        </div>
+        <div class="kin-cat">food</div>
+      </div>
+      <div class="kin">
+        <div class="kin-strength">0.74</div>
+        <div class="kin-main">
+          <div class="kin-title">¿Me lo deja para llevar?</div>
+          <span class="kin-bridge">bridge: <em>¿me…?</em> service request · food</span>
+        </div>
+        <div class="kin-cat">food</div>
+      </div>
+      <div class="kin">
+        <div class="kin-strength">0.62</div>
+        <div class="kin-main">
+          <div class="kin-title">Que esté bien caliente, por favor.</div>
+          <span class="kin-bridge">bridge: specifying preparation · food</span>
+        </div>
+        <div class="kin-cat">food</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─── Index bar ─── -->
+<div id="index-bar">
+  <span><span class="ix-name">dichos</span> · v.0.1 · <span class="ix-region">MX · ES</span></span>
+  <span class="ix-new">+ ask</span>
+</div>
+
+<!-- ─── Toast ─── -->
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+
+  // Open detail on any card click
+  document.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('click', () => {
+      $('detail-overlay').classList.add('active');
+      document.body.classList.add('no-scroll');
+      $('detail-overlay').scrollTop = 0;
+    });
+  });
+
+  $('back-btn').addEventListener('click', () => {
+    $('detail-overlay').classList.remove('active');
+    document.body.classList.remove('no-scroll');
+  });
+
+  // Toast
+  let toastTimer;
+  function toast(message, accent) {
+    const el = $('toast');
+    el.innerHTML = accent ? `<span class="accent">${accent}</span> ${message}` : message;
+    el.classList.add('visible');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('visible'), 2200);
+  }
+
+  // Ask flow (demo): typing → status, button → simulated response
+  const input = $('ask-input');
+  const status = $('ask-status');
+  const sug = $('suggestion');
+
+  input.addEventListener('input', () => {
+    const v = input.value.trim();
+    if (!v) { status.textContent = ''; return; }
+    if (v.length < 8) {
+      status.textContent = 'keep going · describe the situation if you can';
+    } else {
+      status.innerHTML = '<span class="pulse"></span>ready · ⌘↵ to ask';
+    }
+  });
+
+  function ask() {
+    const v = input.value.trim();
+    if (!v) { input.focus(); return; }
+    sug.classList.remove('visible');
+    status.innerHTML = '<span class="pulse"></span>thinking · checking region MX · weighing register…';
+    setTimeout(() => {
+      status.textContent = '';
+      sug.classList.add('visible');
+      sug.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      toast('answered · MX · neutral register', '✓');
+    }, 1100);
+  }
+
+  $('ask-go').addEventListener('click', ask);
+  input.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); ask(); }
+  });
+
+  $('save-btn').addEventListener('click', () => toast('saved to phrasebook', '↳'));
+
+  document.querySelectorAll('.cat-item').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.cat-item').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+    });
+  });
+
+  document.querySelector('.ix-new').addEventListener('click', () => {
+    input.focus();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+})();
+</script>
+
+</body>
+</html>
