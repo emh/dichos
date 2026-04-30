@@ -204,7 +204,7 @@ header h1::first-letter {
 /* ─── Breakdown ─── */
 
 .breakdown-body {
-  margin: 10px 0 0 16px;
+  margin: 10px 0 0 0;
   padding: 12px 14px;
   background: var(--paper-shade);
   border: 1px solid var(--rule);
@@ -375,7 +375,7 @@ header h1::first-letter {
 /* ─── Questions ─── */
 
 .questions-body {
-  margin: 10px 0 0 16px;
+  margin: 10px 0 0 0;
   padding: 12px 14px;
   background: var(--paper-shade);
   border: 1px solid var(--rule);
@@ -616,10 +616,13 @@ header h1::first-letter {
 .group-row > .card-meaning + .card-literal { margin-top: 4px; }
 
 .actions {
-  display: flex;
+  display: inline-flex;
   flex-direction: column;
-  gap: 6px;
   flex-shrink: 0;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 18px;
+  overflow: hidden;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s;
@@ -654,30 +657,29 @@ header h1::first-letter {
 }
 
 .action-btn {
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--rule);
-  background: var(--paper);
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-top: 1px solid var(--rule);
+  background: transparent;
   color: var(--ink-light);
-  border-radius: 50%;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition: background 0.15s, color 0.15s;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
 }
+.actions .action-btn:first-child { border-top: none; }
 
 .action-btn:hover {
   color: var(--accent);
-  border-color: var(--accent);
   background: var(--accent-faint);
 }
 
 .action-btn.active {
   background: var(--accent);
   color: var(--paper);
-  border-color: var(--accent);
 }
 
 .action-btn .icon {
@@ -698,7 +700,6 @@ header h1::first-letter {
 .action-btn.speak-btn.playing {
   background: var(--accent);
   color: var(--paper);
-  border-color: var(--accent);
 }
 
 /* ─── Pending review card ─── */
@@ -708,7 +709,7 @@ header h1::first-letter {
 }
 
 .pending-card {
-  padding: 18px 44px 18px 18px;
+  padding: 18px;
   border: 1px solid var(--rule);
   background: var(--paper-shade);
   position: relative;
@@ -733,17 +734,16 @@ header h1::first-letter {
 }
 
 .phrase-toggle {
-  display: grid;
-  grid-template-columns: 22px 1fr;
-  gap: 10px;
+  display: block;
   padding: 10px;
   margin: 0 -10px;
   cursor: pointer;
   border-radius: 2px;
   transition: background 0.15s, opacity 0.15s;
-  align-items: start;
   user-select: none;
 }
+
+.phrase-check { display: none; }
 
 .phrase-toggle:hover {
   background: var(--hover);
