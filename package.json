@@ -1,0 +1,16 @@
+{
+  "name": "dichos",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npm run dev:web",
+    "dev:web": "wds --root-dir app --watch --app-index index.html --hostname 127.0.0.1 --port 8044",
+    "dev:ask": "wrangler dev --config workers/ask/wrangler.toml",
+    "dev:sync": "wrangler dev --config workers/sync/wrangler.toml",
+    "check": "node --check app/main.js && node --check app/sync.js && node --check app/storage.js && node --check workers/ask/src/index.js && node --check workers/sync/src/index.js"
+  },
+  "devDependencies": {
+    "@web/dev-server": "^0.4.6",
+    "wrangler": "^3"
+  }
+}

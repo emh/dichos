@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#FFFBF2">
+<meta name="google" content="notranslate">
+<title>dichos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+<div id="app">
+
+  <header>
+    <h1 translate="no">dichos</h1>
+    <div class="sync-bar">
+      <div class="sync-status" id="sync-status">connecting…</div>
+      <button class="purge-btn" id="purge-btn" hidden>purge</button>
+    </div>
+  </header>
+
+  <section class="ask">
+    <div class="ask-header">
+      <div class="ask-label">ask</div>
+      <div class="mode-toggle" id="mode-toggle">
+        <button class="mode-btn active" data-mode="en2es">EN → ES</button>
+        <button class="mode-btn" data-mode="es2en">ES → EN</button>
+      </div>
+    </div>
+    <input id="ask-input" type="text" autocomplete="off" placeholder="what do I say in Spanish when…">
+    <div class="ask-status" id="ask-status"></div>
+  </section>
+
+  <section id="pending" class="pending"></section>
+
+  <div class="filter-bar">
+    <input id="filter-input" type="text" autocomplete="off" placeholder="filter saved phrases…">
+    <div class="filter-tags" id="filter-tags"></div>
+  </div>
+
+  <section id="list" class="list">
+    <!-- saved phrases render here -->
+  </section>
+
+</div>
+
+<script type="module" src="./main.js"></script>
+</body>
+</html>

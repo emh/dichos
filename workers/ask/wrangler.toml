@@ -1,0 +1,13 @@
+name = "dichos-ask"
+main = "src/index.js"
+compatibility_date = "2026-04-01"
+workers_dev = true
+
+[dev]
+port = 8045
+
+[vars]
+ALLOWED_ORIGINS = "http://localhost:8044,http://127.0.0.1:8044"
+OPENAI_MODEL = "gpt-5.4-nano"
+OPENAI_TTS_MODEL = "gpt-4o-mini-tts"
+OPENAI_TTS_VOICE = "nova"
