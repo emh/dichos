@@ -1,7 +1,7 @@
 import { loadSyncState, saveSyncState, loadDeviceId } from './storage.js';
 
-const SYNC_HOST = 'http://127.0.0.1:8046';
-const WS_HOST = 'ws://127.0.0.1:8046';
+const SYNC_HOST = globalThis.DICHOS_CONFIG?.syncBaseUrl || 'http://127.0.0.1:8046';
+const WS_HOST = SYNC_HOST.replace(/^http/, 'ws');
 
 export class Sync {
   constructor({ onRemote, onStatus }) {

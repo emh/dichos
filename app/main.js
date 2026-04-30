@@ -3,10 +3,11 @@ import { Sync } from './sync.js';
 
 const $ = id => document.getElementById(id);
 
-const ASK_URL = 'http://127.0.0.1:8045/api/ask';
-const TTS_URL = 'http://127.0.0.1:8045/api/tts';
-const BREAKDOWN_URL = 'http://127.0.0.1:8045/api/breakdown';
-const QUESTION_URL = 'http://127.0.0.1:8045/api/question';
+const ASK_BASE = globalThis.DICHOS_CONFIG?.askBaseUrl || 'http://127.0.0.1:8045';
+const ASK_URL = `${ASK_BASE}/api/ask`;
+const TTS_URL = `${ASK_BASE}/api/tts`;
+const BREAKDOWN_URL = `${ASK_BASE}/api/breakdown`;
+const QUESTION_URL = `${ASK_BASE}/api/question`;
 
 const breakdownCache = new Map(Object.entries(loadBreakdowns())); // text -> { words: [...] }
 const breakdownLoading = new Set();
@@ -132,8 +133,9 @@ if (isDev) {
   purgeBtn.hidden = false;
   purgeBtn.addEventListener('click', async () => {
     if (!confirm('Purge ALL local + server data? This cannot be undone.')) return;
+    const syncBase = globalThis.DICHOS_CONFIG?.syncBaseUrl || 'http://127.0.0.1:8046';
     try {
-      await fetch('http://127.0.0.1:8046/api/purge', { method: 'POST' });
+      await fetch(`${syncBase}/api/purge`, { method: 'POST' });
     } catch {}
     localStorage.clear();
     location.reload();
