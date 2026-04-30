@@ -43,6 +43,16 @@ export class Phrasebook {
     this.state.storage.sql.exec(
       "CREATE INDEX IF NOT EXISTS questions_updated_at_idx ON questions(updated_at)"
     );
+    this.state.storage.sql.exec(`
+      CREATE TABLE IF NOT EXISTS conjugations (
+        lemma TEXT PRIMARY KEY,
+        json TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    `);
+    this.state.storage.sql.exec(
+      "CREATE INDEX IF NOT EXISTS conjugations_updated_at_idx ON conjugations(updated_at)"
+    );
   }
 
   async fetch(request) {
@@ -80,6 +90,7 @@ export class Phrasebook {
         this.state.storage.sql.exec("DELETE FROM phrases");
         this.state.storage.sql.exec("DELETE FROM breakdowns");
         this.state.storage.sql.exec("DELETE FROM questions");
+        this.state.storage.sql.exec("DELETE FROM conjugations");
         this.broadcast(null, { type: "purge" });
         return json({ ok: true }, 200, cors);
       }
@@ -89,6 +100,7 @@ export class Phrasebook {
         const accepted = this.applyPhrases(Array.isArray(body?.phrases) ? body.phrases : []);
         const acceptedBreakdowns = this.applyBreakdowns(Array.isArray(body?.breakdowns) ? body.breakdowns : []);
         const acceptedQuestions = this.applyQuestions(Array.isArray(body?.questions) ? body.questions : []);
+        const acceptedConjugations = this.applyConjugations(Array.isArray(body?.conjugations) ? body.conjugations : []);
         const hwm = this.highWatermark();
         if (accepted.length) {
           this.broadcast(null, { type: "phrases", phrases: accepted, highWatermark: hwm });
@@ -99,13 +111,18 @@ export class Phrasebook {
         if (acceptedQuestions.length) {
           this.broadcast(null, { type: "questions", questions: acceptedQuestions, highWatermark: hwm });
         }
+        if (acceptedConjugations.length) {
+          this.broadcast(null, { type: "conjugations", conjugations: acceptedConjugations, highWatermark: hwm });
+        }
         return json({
           phrases: this.phrasesSince(since),
           breakdowns: this.breakdownsSince(since),
           questions: this.questionsSince(since),
+          conjugations: this.conjugationsSince(since),
           confirmedIds: accepted.map(p => p.id),
           confirmedTexts: acceptedBreakdowns.map(b => b.text),
           confirmedQuestionIds: acceptedQuestions.map(q => q.id),
+          confirmedLemmas: acceptedConjugations.map(c => c.lemma),
           highWatermark: hwm
         }, 200, cors);
       }
@@ -136,6 +153,7 @@ export class Phrasebook {
           phrases: this.phrasesSince(since),
           breakdowns: this.breakdownsSince(since),
           questions: this.questionsSince(since),
+          conjugations: this.conjugationsSince(since),
           highWatermark: this.highWatermark()
         }));
         return;
@@ -144,12 +162,14 @@ export class Phrasebook {
         const accepted = this.applyPhrases(Array.isArray(message.phrases) ? message.phrases : []);
         const acceptedBreakdowns = this.applyBreakdowns(Array.isArray(message.breakdowns) ? message.breakdowns : []);
         const acceptedQuestions = this.applyQuestions(Array.isArray(message.questions) ? message.questions : []);
+        const acceptedConjugations = this.applyConjugations(Array.isArray(message.conjugations) ? message.conjugations : []);
         const hwm = this.highWatermark();
         socket.send(JSON.stringify({
           type: "ack",
           confirmedIds: accepted.map(p => p.id),
           confirmedTexts: acceptedBreakdowns.map(b => b.text),
           confirmedQuestionIds: acceptedQuestions.map(q => q.id),
+          confirmedLemmas: acceptedConjugations.map(c => c.lemma),
           highWatermark: hwm
         }));
         if (accepted.length) {
@@ -160,6 +180,9 @@ export class Phrasebook {
         }
         if (acceptedQuestions.length) {
           this.broadcast(socket, { type: "questions", questions: acceptedQuestions, highWatermark: hwm });
+        }
+        if (acceptedConjugations.length) {
+          this.broadcast(socket, { type: "conjugations", conjugations: acceptedConjugations, highWatermark: hwm });
         }
         return;
       }
@@ -267,6 +290,35 @@ export class Phrasebook {
     return rows.map(row => JSON.parse(row.json));
   }
 
+  applyConjugations(input) {
+    const accepted = [];
+    for (const candidate of input) {
+      const c = normalizeConjugation(candidate);
+      if (!c) continue;
+      const existing = [...this.state.storage.sql.exec(
+        "SELECT updated_at FROM conjugations WHERE lemma = ?", c.lemma
+      )][0];
+      if (existing && existing.updated_at >= c.updatedAt) continue;
+      this.state.storage.sql.exec(
+        "INSERT OR REPLACE INTO conjugations (lemma, json, updated_at) VALUES (?, ?, ?)",
+        c.lemma, JSON.stringify(c), c.updatedAt
+      );
+      accepted.push(c);
+    }
+    return accepted;
+  }
+
+  conjugationsSince(since) {
+    const rows = since
+      ? [...this.state.storage.sql.exec(
+          "SELECT json FROM conjugations WHERE updated_at > ? ORDER BY updated_at ASC", since
+        )]
+      : [...this.state.storage.sql.exec(
+          "SELECT json FROM conjugations ORDER BY updated_at ASC"
+        )];
+    return rows.map(row => JSON.parse(row.json));
+  }
+
   highWatermark() {
     const a = [...this.state.storage.sql.exec(
       "SELECT updated_at FROM phrases ORDER BY updated_at DESC LIMIT 1"
@@ -277,7 +329,10 @@ export class Phrasebook {
     const c = [...this.state.storage.sql.exec(
       "SELECT updated_at FROM questions ORDER BY updated_at DESC LIMIT 1"
     )][0]?.updated_at || 0;
-    return Math.max(a, b, c);
+    const d = [...this.state.storage.sql.exec(
+      "SELECT updated_at FROM conjugations ORDER BY updated_at DESC LIMIT 1"
+    )][0]?.updated_at || 0;
+    return Math.max(a, b, c, d);
   }
 
   snapshot(since) {
@@ -285,6 +340,7 @@ export class Phrasebook {
       phrases: this.phrasesSince(since),
       breakdowns: this.breakdownsSince(since),
       questions: this.questionsSince(since),
+      conjugations: this.conjugationsSince(since),
       highWatermark: this.highWatermark()
     };
   }
@@ -343,6 +399,31 @@ function normalizeBreakdown(input) {
   return {
     text,
     words,
+    updatedAt: numberOrZero(input.updatedAt) || Date.now()
+  };
+}
+
+function normalizeConjugation(input) {
+  if (!input || typeof input !== "object") return null;
+  const lemma = String(input.lemma || "").trim().slice(0, 200);
+  if (!lemma) return null;
+  const tensesRaw = Array.isArray(input.tenses) ? input.tenses : null;
+  if (!tensesRaw) return null;
+  const tenses = tensesRaw.map(t => ({
+    mood: String(t?.mood || "").slice(0, 32),
+    tense: String(t?.tense || "").slice(0, 32),
+    forms: Array.isArray(t?.forms) ? t.forms.slice(0, 6).map(f => String(f || "").slice(0, 100)) : []
+  }));
+  const nf = input.nonfinite || {};
+  return {
+    lemma,
+    translation: String(input.translation || "").slice(0, 200),
+    nonfinite: {
+      infinitive: String(nf.infinitive || "").slice(0, 100),
+      gerund: String(nf.gerund || "").slice(0, 100),
+      participle: String(nf.participle || "").slice(0, 100)
+    },
+    tenses,
     updatedAt: numberOrZero(input.updatedAt) || Date.now()
   };
 }

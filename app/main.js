@@ -1,4 +1,4 @@
-import { loadSaved, saveSaved, loadBreakdowns, saveBreakdowns, loadQuestions, saveQuestions } from './storage.js';
+import { loadSaved, saveSaved, loadBreakdowns, saveBreakdowns, loadQuestions, saveQuestions, loadConjugations, saveConjugations } from './storage.js';
 import { Sync } from './sync.js';
 
 const $ = id => document.getElementById(id);
@@ -8,6 +8,7 @@ const ASK_URL = `${ASK_BASE}/api/ask`;
 const TTS_URL = `${ASK_BASE}/api/tts`;
 const BREAKDOWN_URL = `${ASK_BASE}/api/breakdown`;
 const QUESTION_URL = `${ASK_BASE}/api/question`;
+const CONJUGATE_URL = `${ASK_BASE}/api/conjugate`;
 
 // text -> { words: [...], updatedAt }
 const breakdownCache = new Map(
@@ -21,6 +22,43 @@ const breakdownOpen = new Set();
 
 function persistBreakdowns() {
   saveBreakdowns(Object.fromEntries(breakdownCache));
+}
+
+// lemma -> { data: {lemma, translation, nonfinite, tenses}, updatedAt }
+const conjugationCache = new Map(
+  Object.entries(loadConjugations()).map(([lemma, v]) => [
+    lemma,
+    { data: v?.data || v, updatedAt: Number(v?.updatedAt) || 0 }
+  ])
+);
+const conjugationLoading = new Set(); // lemma
+const conjugationOpen = new Set();    // `${text}::${lemma}` keys (per-breakdown)
+
+function persistConjugations() {
+  saveConjugations(Object.fromEntries(conjugationCache));
+}
+
+function mergeRemoteConjugations(incoming) {
+  let changed = false;
+  let visibleChanged = false;
+  for (const remote of incoming) {
+    if (!remote?.lemma || !Array.isArray(remote.tenses)) continue;
+    const local = conjugationCache.get(remote.lemma);
+    const localTs = local?.updatedAt || 0;
+    const remoteTs = Number(remote.updatedAt) || 0;
+    if (remoteTs > localTs) {
+      conjugationCache.set(remote.lemma, { data: remote, updatedAt: remoteTs });
+      changed = true;
+      for (const k of conjugationOpen) {
+        if (k.endsWith(`::${remote.lemma}`)) { visibleChanged = true; break; }
+      }
+    }
+  }
+  if (changed) persistConjugations();
+  if (visibleChanged) {
+    renderSaved();
+    renderPending();
+  }
 }
 
 function mergeRemoteBreakdowns(incoming) {
@@ -201,6 +239,7 @@ const sync = new Sync({
   onRemote: mergeRemote,
   onRemoteBreakdowns: mergeRemoteBreakdowns,
   onRemoteQuestions: mergeRemoteQuestions,
+  onRemoteConjugations: mergeRemoteConjugations,
   onStatus: (s) => {
     const el = document.getElementById('sync-status');
     if (el) el.textContent = s;
@@ -305,20 +344,97 @@ function breakdownHTML(text) {
   if (!data) return '';
   return `
     <div class="breakdown-body">
-      ${data.words.map(w => `
+      ${data.words.map(w => {
+        const lemma = (w.lemma || '').trim();
+        const isVerb = w.pos === 'verb' && !!lemma;
+        const conjKey = `${text}::${lemma}`;
+        const conjOpen = isVerb && conjugationOpen.has(conjKey);
+        const conjLoading = isVerb && conjugationLoading.has(lemma);
+        return `
         <div class="word">
           <div class="word-surface" lang="es" translate="no">${escapeHtml(w.word)}</div>
           <div class="word-pos">${escapeHtml(w.pos)}</div>
           <div class="word-gloss">${escapeHtml(w.gloss)}</div>
           <div class="word-info">
-            ${w.lemma && w.lemma.toLowerCase() !== w.word.toLowerCase()
-              ? `<span class="word-lemma" lang="es" translate="no">${escapeHtml(w.lemma)}</span>` : ''}
+            ${lemma && lemma.toLowerCase() !== w.word.toLowerCase()
+              ? `<span class="word-lemma" lang="es" translate="no">${escapeHtml(lemma)}</span>` : ''}
             ${w.info.map(t => `<span class="word-tag">${escapeHtml(t)}</span>`).join('')}
+            ${isVerb ? `
+              <button class="conjugate-btn ${conjOpen ? 'active' : ''} ${conjLoading ? 'loading' : ''}"
+                      data-text="${escapeHtml(text)}" data-lemma="${escapeHtml(lemma)}">
+                ${conjLoading ? '…' : 'conjugate'}
+              </button>
+            ` : ''}
           </div>
+          ${isVerb && conjOpen ? conjugationPanelHTML(lemma) : ''}
         </div>
-      `).join('')}
+      `;
+      }).join('')}
     </div>
   `;
+}
+
+function conjugationPanelHTML(lemma) {
+  const cached = conjugationCache.get(lemma);
+  const data = cached?.data;
+  if (!data) return '';
+  const PERSONS = ['yo', 'tú', 'él/ella', 'nosotros', 'vosotros', 'ellos/ellas'];
+  return `
+    <div class="conjugation">
+      <div class="conjugation-head">
+        <span class="conjugation-lemma" lang="es" translate="no">${escapeHtml(data.lemma)}</span>
+        ${data.translation ? `<span class="conjugation-translation">${escapeHtml(data.translation)}</span>` : ''}
+      </div>
+      ${data.nonfinite ? `
+        <div class="conjugation-nonfinite">
+          ${data.nonfinite.gerund ? `<span><em>gerund:</em> <span lang="es" translate="no">${escapeHtml(data.nonfinite.gerund)}</span></span>` : ''}
+          ${data.nonfinite.participle ? `<span><em>participle:</em> <span lang="es" translate="no">${escapeHtml(data.nonfinite.participle)}</span></span>` : ''}
+        </div>
+      ` : ''}
+      <div class="conjugation-tenses">
+        ${data.tenses.map(t => `
+          <div class="conjugation-tense">
+            <div class="conjugation-tense-name">${escapeHtml(t.mood)} · ${escapeHtml(t.tense)}</div>
+            <div class="conjugation-forms">
+              ${t.forms.map((form, i) => `
+                <div class="conjugation-row">
+                  <span class="conjugation-person">${PERSONS[i] || ''}</span>
+                  <span class="conjugation-form" lang="es" translate="no">${escapeHtml(form)}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+async function loadConjugation(lemma, rerender) {
+  if (conjugationCache.has(lemma) || conjugationLoading.has(lemma)) return;
+  conjugationLoading.add(lemma);
+  rerender();
+  try {
+    const res = await fetch(CONJUGATE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lemma })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `request failed: ${res.status}`);
+    const now = Date.now();
+    conjugationCache.set(lemma, { data, updatedAt: now });
+    persistConjugations();
+    sync.pushConjugation({ ...data, updatedAt: now });
+  } catch (err) {
+    for (const k of [...conjugationOpen]) {
+      if (k.endsWith(`::${lemma}`)) conjugationOpen.delete(k);
+    }
+    status.textContent = `conjugate error · ${err.message}`;
+  } finally {
+    conjugationLoading.delete(lemma);
+    rerender();
+  }
 }
 
 async function loadBreakdown(text, rerender) {
@@ -449,10 +565,30 @@ function bindBreakdownButtons(root, rerender) {
   });
 }
 
+function bindConjugateButtons(root, rerender) {
+  root.querySelectorAll('.conjugate-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const text = btn.dataset.text;
+      const lemma = btn.dataset.lemma;
+      const key = `${text}::${lemma}`;
+      if (conjugationOpen.has(key)) {
+        conjugationOpen.delete(key);
+        rerender();
+      } else {
+        conjugationOpen.add(key);
+        if (!conjugationCache.has(lemma)) loadConjugation(lemma, rerender);
+        else rerender();
+      }
+    });
+  });
+}
+
 function bindActions(root, rerender) {
   bindSpeakButtons(root);
   bindBreakdownButtons(root, rerender);
   bindQuestionButtons(root, rerender);
+  bindConjugateButtons(root, rerender);
 }
 
 // For both directions, every saved card has: { tag, direction, intent, es, en, literal }

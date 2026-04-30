@@ -4,16 +4,18 @@ const SYNC_HOST = globalThis.DICHOS_CONFIG?.syncBaseUrl || 'http://127.0.0.1:804
 const WS_HOST = SYNC_HOST.replace(/^http/, 'ws');
 
 export class Sync {
-  constructor({ onRemote, onRemoteBreakdowns, onRemoteQuestions, onStatus }) {
+  constructor({ onRemote, onRemoteBreakdowns, onRemoteQuestions, onRemoteConjugations, onStatus }) {
     this.onRemote = onRemote;       // (phrases) => void — apply incoming
     this.onRemoteBreakdowns = onRemoteBreakdowns || (() => {});
     this.onRemoteQuestions = onRemoteQuestions || (() => {});
+    this.onRemoteConjugations = onRemoteConjugations || (() => {});
     this.onStatus = onStatus || (() => {});
     this.deviceId = loadDeviceId();
     this.state = loadSyncState();   // { highWatermark }
     this.pending = [];              // phrases queued to send
     this.pendingBreakdowns = [];    // breakdowns queued to send
     this.pendingQuestions = [];     // questions queued to send
+    this.pendingConjugations = []; // conjugations queued to send
     this.socket = null;
     this.reconnectDelay = 1000;
     this.connecting = false;
@@ -64,7 +66,7 @@ export class Sync {
       try { msg = JSON.parse(e.data); } catch { return; }
       if (msg.type === 'snapshot' || msg.type === 'phrases') {
         this.applySnapshot(msg);
-      } else if (msg.type === 'breakdowns' || msg.type === 'questions') {
+      } else if (msg.type === 'breakdowns' || msg.type === 'questions' || msg.type === 'conjugations') {
         this.applySnapshot(msg);
       } else if (msg.type === 'ack') {
         this.handleAck(msg);
@@ -100,6 +102,8 @@ export class Sync {
     if (breakdowns.length) this.onRemoteBreakdowns(breakdowns);
     const questions = Array.isArray(data?.questions) ? data.questions : [];
     if (questions.length) this.onRemoteQuestions(questions);
+    const conjugations = Array.isArray(data?.conjugations) ? data.conjugations : [];
+    if (conjugations.length) this.onRemoteConjugations(conjugations);
     if (typeof data?.highWatermark === 'number' && data.highWatermark > this.state.highWatermark) {
       this.state.highWatermark = data.highWatermark;
       saveSyncState(this.state);
@@ -113,6 +117,8 @@ export class Sync {
     this.pendingBreakdowns = this.pendingBreakdowns.filter(b => !texts.has(b.text));
     const qids = new Set(msg.confirmedQuestionIds || []);
     this.pendingQuestions = this.pendingQuestions.filter(q => !qids.has(q.id));
+    const lemmas = new Set(msg.confirmedLemmas || []);
+    this.pendingConjugations = this.pendingConjugations.filter(c => !lemmas.has(c.lemma));
     if (typeof msg.highWatermark === 'number' && msg.highWatermark > this.state.highWatermark) {
       this.state.highWatermark = msg.highWatermark;
       saveSyncState(this.state);
@@ -136,25 +142,33 @@ export class Sync {
     this.flush();
   }
 
+  pushConjugation(conjugation) {
+    this.pendingConjugations = this.pendingConjugations.filter(c => c.lemma !== conjugation.lemma);
+    this.pendingConjugations.push(conjugation);
+    this.flush();
+  }
+
   flush() {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
       this.flushHttp();
       return;
     }
-    if (!this.pending.length && !this.pendingBreakdowns.length && !this.pendingQuestions.length) return;
+    if (!this.pending.length && !this.pendingBreakdowns.length && !this.pendingQuestions.length && !this.pendingConjugations.length) return;
     this.socket.send(JSON.stringify({
       type: 'push',
       phrases: this.pending.slice(),
       breakdowns: this.pendingBreakdowns.slice(),
-      questions: this.pendingQuestions.slice()
+      questions: this.pendingQuestions.slice(),
+      conjugations: this.pendingConjugations.slice()
     }));
   }
 
   async flushHttp() {
-    if (!this.pending.length && !this.pendingBreakdowns.length && !this.pendingQuestions.length) return;
+    if (!this.pending.length && !this.pendingBreakdowns.length && !this.pendingQuestions.length && !this.pendingConjugations.length) return;
     const sendingPhrases = this.pending.slice();
     const sendingBreakdowns = this.pendingBreakdowns.slice();
     const sendingQuestions = this.pendingQuestions.slice();
+    const sendingConjugations = this.pendingConjugations.slice();
     try {
       const res = await fetch(`${SYNC_HOST}/api/sync`, {
         method: 'POST',
@@ -163,6 +177,7 @@ export class Sync {
           phrases: sendingPhrases,
           breakdowns: sendingBreakdowns,
           questions: sendingQuestions,
+          conjugations: sendingConjugations,
           since: this.state.highWatermark
         })
       });
@@ -174,6 +189,8 @@ export class Sync {
       this.pendingBreakdowns = this.pendingBreakdowns.filter(b => !texts.has(b.text));
       const qids = new Set(data.confirmedQuestionIds || []);
       this.pendingQuestions = this.pendingQuestions.filter(q => !qids.has(q.id));
+      const lemmas = new Set(data.confirmedLemmas || []);
+      this.pendingConjugations = this.pendingConjugations.filter(c => !lemmas.has(c.lemma));
       this.applySnapshot(data);
     } catch {
       // leave pending; will retry on reconnect

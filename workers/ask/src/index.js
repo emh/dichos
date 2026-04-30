@@ -52,6 +52,37 @@ Return JSON only:
   ]
 }`;
 
+const CONJUGATE_PROMPT = `You produce a Spanish verb conjugation table for a learner.
+
+Person order is fixed and required for every "forms" array — exactly 6 entries:
+[yo, tú, él/ella/usted, nosotros, vosotros, ellos/ellas/ustedes]
+
+For imperative, persons that don't exist must be the literal string "—" (em dash). Imperative "yo" never exists.
+
+Return JSON only:
+{
+  "lemma": "<infinitive>",
+  "translation": "<brief English meaning, e.g. 'to speak'>",
+  "nonfinite": {
+    "infinitive": "...",
+    "gerund": "...",
+    "participle": "..."
+  },
+  "tenses": [
+    { "mood": "indicative",  "tense": "present",     "forms": [6] },
+    { "mood": "indicative",  "tense": "preterite",   "forms": [6] },
+    { "mood": "indicative",  "tense": "imperfect",   "forms": [6] },
+    { "mood": "indicative",  "tense": "future",      "forms": [6] },
+    { "mood": "indicative",  "tense": "conditional", "forms": [6] },
+    { "mood": "subjunctive", "tense": "present",     "forms": [6] },
+    { "mood": "subjunctive", "tense": "imperfect",   "forms": [6] },
+    { "mood": "imperative",  "tense": "affirmative", "forms": [6] },
+    { "mood": "imperative",  "tense": "negative",    "forms": [6] }
+  ]
+}
+
+Use neutral Latin American Spanish but include vosotros forms for completeness. No commentary outside the JSON.`;
+
 const ES2EN_PROMPT = `You translate the user's Spanish input into natural English. Translate exactly what they wrote — do not expand it.
 
 Return 1–3 English translations. Add more than one only when there's a real difference in meaning, register, or common alternate phrasing. Most Spanish phrases have one good English equivalent.
@@ -122,6 +153,14 @@ export default {
         const text = (body?.text || "").trim();
         if (!text) return json({ error: "text is required" }, 400, cors);
         const result = await breakdown(text, env);
+        return json(result, 200, cors);
+      }
+
+      if (url.pathname === "/api/conjugate") {
+        const body = await request.json();
+        const lemma = (body?.lemma || "").trim();
+        if (!lemma) return json({ error: "lemma is required" }, 400, cors);
+        const result = await conjugate(lemma, env);
         return json(result, 200, cors);
       }
 
@@ -286,6 +325,64 @@ async function breakdown(text, env) {
   if (words.length === 0) throw new Error("OpenAI response had no words");
 
   return { words };
+}
+
+async function conjugate(lemma, env) {
+  const model = env.OPENAI_MODEL || "gpt-4.1-mini";
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: CONJUGATE_PROMPT },
+        { role: "user", content: `Verb: ${lemma}` }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload?.error?.message || `OpenAI request failed: ${response.status}`);
+  }
+
+  const payload = await response.json();
+  const raw = payload.choices?.[0]?.message?.content?.trim();
+  if (!raw) throw new Error("OpenAI returned no answer");
+
+  let parsed;
+  try { parsed = JSON.parse(raw); }
+  catch { throw new Error("OpenAI returned malformed JSON"); }
+
+  const tenses = Array.isArray(parsed.tenses) ? parsed.tenses : [];
+  const cleaned = tenses
+    .map(t => ({
+      mood: String(t?.mood || "").trim().toLowerCase(),
+      tense: String(t?.tense || "").trim().toLowerCase(),
+      forms: Array.isArray(t?.forms)
+        ? t.forms.slice(0, 6).map(f => String(f || "").trim())
+        : []
+    }))
+    .filter(t => t.mood && t.tense && t.forms.length === 6);
+
+  if (!cleaned.length) throw new Error("OpenAI returned no conjugations");
+
+  const nonfinite = parsed.nonfinite || {};
+  return {
+    lemma: String(parsed.lemma || lemma).trim(),
+    translation: String(parsed.translation || "").trim(),
+    nonfinite: {
+      infinitive: String(nonfinite.infinitive || lemma).trim(),
+      gerund: String(nonfinite.gerund || "").trim(),
+      participle: String(nonfinite.participle || "").trim()
+    },
+    tenses: cleaned
+  };
 }
 
 async function speak(text, env, cors) {

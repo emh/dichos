@@ -280,6 +280,98 @@ header h1::first-letter {
   letter-spacing: 0.04em;
 }
 
+.conjugate-btn {
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  padding: 1px 7px;
+  background: var(--paper);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 2px;
+  cursor: pointer;
+  text-transform: lowercase;
+}
+.conjugate-btn:hover { background: var(--accent); color: var(--paper); }
+.conjugate-btn.active { background: var(--accent); color: var(--paper); }
+.conjugate-btn.loading { opacity: 0.6; }
+
+.conjugation {
+  grid-column: 1 / -1;
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-mid);
+}
+
+.conjugation-head {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px dotted var(--rule);
+}
+.conjugation-lemma {
+  font-family: var(--font);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--ink);
+}
+.conjugation-translation {
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--ink-light);
+}
+
+.conjugation-nonfinite {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--ink-light);
+}
+.conjugation-nonfinite em {
+  color: var(--ink-faint);
+  font-style: normal;
+  letter-spacing: 0.04em;
+}
+
+.conjugation-tenses {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px 14px;
+}
+
+.conjugation-tense-name {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.conjugation-row {
+  display: grid;
+  grid-template-columns: minmax(70px, max-content) 1fr;
+  gap: 8px;
+  padding: 1px 0;
+}
+.conjugation-person {
+  color: var(--ink-faint);
+}
+.conjugation-form {
+  font-family: var(--font);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink);
+}
+
 /* ─── Questions ─── */
 
 .questions-body {

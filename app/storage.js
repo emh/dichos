@@ -1,6 +1,7 @@
 const SAVED_KEY = 'dichos.saved.v1';
 const BREAKDOWN_KEY = 'dichos.breakdowns.v1';
 const QUESTIONS_KEY = 'dichos.questions.v1';
+const CONJUGATIONS_KEY = 'dichos.conjugations.v1';
 const SYNC_KEY = 'dichos.sync.v1';
 const DEVICE_KEY = 'dichos.device.v1';
 
@@ -78,5 +79,24 @@ export function saveBreakdowns(map) {
     localStorage.setItem(BREAKDOWN_KEY, JSON.stringify(map));
   } catch (err) {
     console.warn('failed to persist breakdowns', err);
+  }
+}
+
+export function loadConjugations() {
+  try {
+    const raw = localStorage.getItem(CONJUGATIONS_KEY);
+    if (!raw) return {};
+    const data = JSON.parse(raw);
+    return data && typeof data === 'object' ? data : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveConjugations(map) {
+  try {
+    localStorage.setItem(CONJUGATIONS_KEY, JSON.stringify(map));
+  } catch (err) {
+    console.warn('failed to persist conjugations', err);
   }
 }
