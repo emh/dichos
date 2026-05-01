@@ -628,8 +628,8 @@ function savedGroupHTML(g) {
           <div class="phrase-text">
             <div class="card-phrase" lang="es" translate="no">${escapeHtml(g.es)}</div>
           </div>
-          ${actionsHTML(g.es, ctx)}
         </div>
+        ${actionsHTML(g.es, ctx)}
         <div class="phrase-list">
           ${g.phrases.map(p => `
             <div class="group-row">
@@ -662,8 +662,8 @@ function savedGroupHTML(g) {
                   <div class="card-phrase" lang="es" translate="no">${escapeHtml(p.es)}</div>
                   <div class="card-literal">lit. ${escapeHtml(p.literal)}</div>
                 </div>
-                ${actionsHTML(p.es, ctx)}
               </div>
+              ${actionsHTML(p.es, ctx)}
               ${breakdownHTML(p.es)}
               ${questionsHTML(p.es, ctx)}
             </div>
@@ -691,7 +691,7 @@ function renderSaved() {
   bindActions(listEl, renderSaved);
   listEl.querySelectorAll('[data-id]').forEach(el => {
     el.addEventListener('click', e => {
-      if (e.target.closest('.action-btn, .qa-form, .qa-input, .qa-send, .breakdown-body')) return;
+      if (e.target.closest('.actions, .qa-form, .qa-input, .qa-send, .breakdown-body')) return;
       if (window.getSelection().toString().trim()) return;
       e.stopPropagation();
       const id = el.dataset.id;
@@ -719,9 +719,8 @@ function pendingPhraseHTML(p, i) {
             <div class="card-phrase ${isEs2en ? 'is-en' : ''}" ${isEs2en ? '' : 'lang="es" translate="no"'}>${escapeHtml(main)}</div>
             <div class="card-literal">lit. ${escapeHtml(p.literal)}</div>
           </div>
-          ${isEs2en ? '' : actionsHTML(p.es, ctx)}
         </div>
-        ${isEs2en ? '' : breakdownHTML(p.es) + questionsHTML(p.es, ctx)}
+        ${isEs2en ? '' : actionsHTML(p.es, ctx) + breakdownHTML(p.es) + questionsHTML(p.es, ctx)}
       </div>
     </div>
   `;

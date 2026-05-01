@@ -537,7 +537,7 @@ header h1::first-letter {
 }
 
 .card {
-  padding: 20px 0 22px;
+  padding: 18px 0 12px;
   border-top: 1px solid var(--rule);
   position: relative;
 }
@@ -616,51 +616,49 @@ header h1::first-letter {
 .group-row > .card-meaning + .card-literal { margin-top: 4px; }
 
 .actions {
-  display: inline-flex;
-  flex-direction: column;
+  display: flex;
+  flex-direction: row;
   flex-shrink: 0;
+  width: max-content;
+  margin: 0 auto;
   background: var(--paper);
   border: 1px solid var(--rule);
   border-radius: 18px;
   overflow: hidden;
   opacity: 0;
+  max-height: 0;
   pointer-events: none;
-  transition: opacity 0.15s;
+  transition: opacity 0.15s, max-height 0.2s ease, margin-top 0.2s ease;
 }
 
 .phrase-content { min-width: 0; }
 
 .phrase-row {
-  display: flex;
-  align-items: stretch;
-  gap: 14px;
+  display: block;
 }
 
 .phrase-text {
-  flex: 1;
   min-width: 0;
-  align-self: flex-start;
-}
-
-.phrase-row .actions {
-  align-self: center;
 }
 
 /* Visibility:
    - Pending suggestions: always visible (mobile-first, no hover)
    - Saved cards/rows: visible only when selected */
-.phrase .phrase-row .actions,
-.card.selected .phrase-row .actions,
-.group-row.selected .phrase-row .actions {
+.phrase > .actions,
+.phrase-content > .actions,
+.card.selected > .actions,
+.group-row.selected > .actions {
   opacity: 1;
+  max-height: 60px;
+  margin-top: 10px;
   pointer-events: auto;
 }
 
 .action-btn {
-  width: 32px;
+  width: 36px;
   height: 32px;
   border: none;
-  border-top: 1px solid var(--rule);
+  border-left: 1px solid var(--rule);
   background: transparent;
   color: var(--ink-light);
   cursor: pointer;
@@ -670,7 +668,7 @@ header h1::first-letter {
   justify-content: center;
   padding: 0;
 }
-.actions .action-btn:first-child { border-top: none; }
+.actions .action-btn:first-child { border-left: none; }
 
 .action-btn:hover {
   color: var(--accent);
