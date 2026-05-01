@@ -7,7 +7,7 @@
     "dev:web": "wds --root-dir app --watch --app-index index.html --hostname 127.0.0.1 --port 8044",
     "dev:ask": "wrangler dev --config workers/ask/wrangler.toml",
     "dev:sync": "wrangler dev --config workers/sync/wrangler.toml",
-    "check": "node --check app/main.js && node --check app/sync.js && node --check app/storage.js && node --check app/config.js && node --check app/sw.js && node --check workers/ask/src/index.js && node --check workers/sync/src/index.js && node -e \"JSON.parse(require('node:fs').readFileSync('app/manifest.webmanifest', 'utf8'))\""
+    "check": "node --check app/main.js && node --check app/sync.js && node --check app/storage.js && node --check app/srs.js && node --check app/config.js && node --check app/sw.js && node --check workers/ask/src/index.js && node --check workers/sync/src/index.js && node -e \"JSON.parse(require('node:fs').readFileSync('app/manifest.webmanifest', 'utf8'))\""
   },
   "devDependencies": {
     "@web/dev-server": "^0.4.6",

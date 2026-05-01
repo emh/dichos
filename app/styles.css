@@ -109,6 +109,189 @@ header h1::first-letter {
   border-color: var(--accent);
 }
 
+.study-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--paper);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.study-btn:hover { opacity: 0.85; }
+
+/* ─── Study mode ─── */
+
+.study {
+  margin: 30px 0 60px;
+}
+
+.study-bar {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 30px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-light);
+}
+
+.study-back {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.study-back:hover { color: var(--accent-light, var(--accent)); }
+
+.study-count { color: var(--ink-light); }
+.study-dir { margin-left: auto; color: var(--ink-faint); }
+
+.study-card {
+  position: relative;
+  padding: 40px 0;
+  text-align: center;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.study-prompt {
+  font-family: var(--font);
+  font-size: 28px;
+  font-weight: 400;
+  color: var(--ink);
+  line-height: 1.3;
+  max-width: 100%;
+}
+.study-prompt.is-es {
+  font-style: italic;
+}
+
+.study-divider {
+  width: 60px;
+  height: 1px;
+  background: var(--rule);
+  margin: 4px auto;
+}
+
+.study-answer {
+  font-family: var(--font);
+  font-size: 24px;
+  color: var(--ink);
+  line-height: 1.3;
+}
+.study-answer.is-es { font-style: italic; }
+
+.study-literal {
+  font-family: var(--font);
+  font-size: 14px;
+  color: var(--ink-light);
+  font-style: normal;
+}
+
+.study-speak {
+  margin-top: 4px;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  background: var(--paper);
+}
+.study-speak:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-faint);
+}
+
+.study-reveal {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--paper);
+  background: var(--accent);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  margin-top: 24px;
+  transition: opacity 0.15s;
+}
+.study-reveal:hover { opacity: 0.9; }
+
+.study-grades {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.grade-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.grade-btn .grade-int {
+  font-size: 9.5px;
+  color: var(--ink-faint);
+  letter-spacing: 0.04em;
+}
+
+.grade-btn:hover {
+  background: var(--accent-faint);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.grade-again { color: var(--ink-mid); }
+.grade-again:hover { color: #b04a3b; border-color: #b04a3b; background: rgba(176, 74, 59, 0.08); }
+
+.grade-easy:hover { color: #4a7a4a; border-color: #4a7a4a; background: rgba(74, 122, 74, 0.08); }
+
+.study-empty {
+  text-align: center;
+  padding: 80px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+.study-empty-text {
+  font-family: var(--font);
+  font-size: 18px;
+  color: var(--ink-light);
+  font-style: italic;
+}
+
 /* ─── Ask box ─── */
 
 .ask {

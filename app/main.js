@@ -1,5 +1,6 @@
-import { loadSaved, saveSaved, loadBreakdowns, saveBreakdowns, loadQuestions, saveQuestions, loadConjugations, saveConjugations } from './storage.js';
+import { loadSaved, saveSaved, loadBreakdowns, saveBreakdowns, loadQuestions, saveQuestions, loadConjugations, saveConjugations, loadSrs, saveSrs } from './storage.js';
 import { Sync } from './sync.js';
+import { GRADES, schedule, dueCards, dueCount, reconcile, predictedIntervals, cardsForPhrase } from './srs.js';
 
 const $ = id => document.getElementById(id);
 
@@ -164,6 +165,30 @@ let filterText = '';
 let filterTag = 'all';
 let selectedSavedId = null;
 
+// ─── SRS state ──────────────────────────────────────────────────────────────
+
+let srsMap = loadSrs();
+let studyView = false;
+let studyQueue = [];
+let studyIndex = 0;
+let studyRevealed = false;
+
+function persistSrs() { saveSrs(srsMap); }
+
+function reconcileSrs() {
+  const { changed } = reconcile(saved, srsMap);
+  if (changed) persistSrs();
+}
+
+function refreshStudyButton() {
+  const btn = document.getElementById('study-btn');
+  if (!btn) return;
+  const n = dueCount(saved, srsMap);
+  if (n === 0) { btn.hidden = true; return; }
+  btn.hidden = false;
+  btn.textContent = `study (${n})`;
+}
+
 function matchesFilter(p, q) {
   if (filterTag !== 'all' && p.tag !== filterTag) return false;
   if (!q) return true;
@@ -230,6 +255,8 @@ function mergeRemote(incoming) {
   if (changed) {
     saved.sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
     persistSaved();
+    reconcileSrs();
+    refreshStudyButton();
     renderFilterTags();
     renderSaved();
   }
@@ -802,6 +829,8 @@ function renderPending() {
       sync.push(record);
     }
     persistSaved();
+    reconcileSrs();
+    refreshStudyButton();
     pending = null;
     renderPending();
     renderFilterTags();
@@ -863,6 +892,171 @@ input.addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); ask(); }
 });
 
+// ─── Study mode ─────────────────────────────────────────────────────────────
+
+const studyEl = $('study');
+const studyBtn = $('study-btn');
+
+const MAIN_VIEWS = ['.ask', '#pending', '.filter-bar', '#list'];
+
+function enterStudy() {
+  reconcileSrs();
+  studyQueue = dueCards(saved, srsMap).map(c => c.id);
+  studyIndex = 0;
+  studyRevealed = false;
+  studyView = true;
+  for (const sel of MAIN_VIEWS) {
+    const el = document.querySelector(sel);
+    if (el) el.hidden = true;
+  }
+  studyEl.hidden = false;
+  renderStudy();
+}
+
+function exitStudy() {
+  studyView = false;
+  studyEl.hidden = true;
+  for (const sel of MAIN_VIEWS) {
+    const el = document.querySelector(sel);
+    if (el) el.hidden = false;
+  }
+  refreshStudyButton();
+}
+
+function currentStudyCard() {
+  if (studyIndex >= studyQueue.length) return null;
+  const id = studyQueue[studyIndex];
+  const [phraseId] = id.split('::');
+  const phrase = saved.find(p => p.id === phraseId);
+  if (!phrase) return null;
+  const card = cardsForPhrase(phrase).find(c => c.id === id);
+  if (!card) return null;
+  return { ...card, state: srsMap[id] };
+}
+
+function renderStudy() {
+  // skip cards that no longer exist (orphans)
+  while (studyIndex < studyQueue.length && !currentStudyCard()) studyIndex++;
+  const card = currentStudyCard();
+  const remaining = Math.max(0, studyQueue.length - studyIndex);
+
+  if (!card) {
+    studyEl.innerHTML = `
+      <div class="study-empty">
+        <div class="study-empty-text">nothing due — back later</div>
+        <button class="study-back" id="study-back">← back</button>
+      </div>`;
+    $('study-back').addEventListener('click', exitStudy);
+    return;
+  }
+
+  const dirLabel = card.dir === 'en2es' ? 'EN → ES' : 'ES → EN';
+  const promptEs = card.dir === 'es2en';
+  const answerEs = card.dir === 'en2es';
+  const intervals = predictedIntervals(card.state);
+
+  studyEl.innerHTML = `
+    <div class="study-bar">
+      <button class="study-back" id="study-back">← back</button>
+      <span class="study-count">${remaining} due</span>
+      <span class="study-dir">${dirLabel}</span>
+    </div>
+    <div class="study-card">
+      <div class="study-prompt ${promptEs ? 'is-es' : ''}" ${promptEs ? 'lang="es" translate="no"' : ''}>${escapeHtml(card.prompt)}</div>
+      ${promptEs ? `<button class="action-btn speak-btn study-speak" data-text="${escapeHtml(card.prompt)}" title="hear it">${ICON_VOLUME}</button>` : ''}
+      ${studyRevealed ? `
+        <div class="study-divider"></div>
+        <div class="study-answer ${answerEs ? 'is-es' : ''}" ${answerEs ? 'lang="es" translate="no"' : ''}>${escapeHtml(card.answer)}</div>
+        ${card.literal ? `<div class="study-literal">lit. ${escapeHtml(card.literal)}</div>` : ''}
+        ${answerEs ? `<button class="action-btn speak-btn study-speak" data-text="${escapeHtml(card.answer)}" title="hear it">${ICON_VOLUME}</button>` : ''}
+      ` : ''}
+    </div>
+    ${studyRevealed ? `
+      <div class="study-grades">
+        <button class="grade-btn grade-again" data-grade="again">
+          <span class="grade-label">again</span>
+          <span class="grade-int">${intervals.again}</span>
+        </button>
+        <button class="grade-btn grade-hard" data-grade="hard">
+          <span class="grade-label">hard</span>
+          <span class="grade-int">${intervals.hard}</span>
+        </button>
+        <button class="grade-btn grade-good" data-grade="good">
+          <span class="grade-label">good</span>
+          <span class="grade-int">${intervals.good}</span>
+        </button>
+        <button class="grade-btn grade-easy" data-grade="easy">
+          <span class="grade-label">easy</span>
+          <span class="grade-int">${intervals.easy}</span>
+        </button>
+      </div>
+    ` : `
+      <button class="study-reveal" id="study-reveal">show answer</button>
+    `}
+  `;
+
+  $('study-back').addEventListener('click', exitStudy);
+  if (!studyRevealed) {
+    $('study-reveal').addEventListener('click', revealCurrent);
+  } else {
+    studyEl.querySelectorAll('.grade-btn').forEach(b => {
+      b.addEventListener('click', () => gradeCurrent(b.dataset.grade));
+    });
+  }
+  studyEl.querySelectorAll('.study-speak').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      speak(btn.dataset.text, btn);
+    });
+  });
+}
+
+function revealCurrent() {
+  studyRevealed = true;
+  renderStudy();
+}
+
+function gradeCurrent(grade) {
+  const card = currentStudyCard();
+  if (!card) return;
+  const q = grade === 'again' ? GRADES.AGAIN
+          : grade === 'hard' ? GRADES.HARD
+          : grade === 'easy' ? GRADES.EASY
+          : GRADES.GOOD;
+  const now = Date.now();
+  srsMap[card.id] = schedule(card.state, q, now);
+  persistSrs();
+
+  // Again-cards reappear ~1 min later in the same session: append to queue.
+  if (q === GRADES.AGAIN) {
+    studyQueue.push(card.id);
+  }
+  studyIndex++;
+  studyRevealed = false;
+  refreshStudyButton();
+  renderStudy();
+}
+
+studyBtn.addEventListener('click', enterStudy);
+
+document.addEventListener('keydown', e => {
+  if (!studyView) return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  const card = currentStudyCard();
+  if (!card) return;
+  if (!studyRevealed) {
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); revealCurrent(); }
+  } else {
+    if (e.key === '1') gradeCurrent('again');
+    else if (e.key === '2') gradeCurrent('hard');
+    else if (e.key === '3') gradeCurrent('good');
+    else if (e.key === '4') gradeCurrent('easy');
+  }
+});
+
+// Boot
+reconcileSrs();
+refreshStudyButton();
 renderPending();
 renderFilterTags();
 renderSaved();
